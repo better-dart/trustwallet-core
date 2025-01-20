@@ -1,24 +1,23 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #include "Signer.h"
+#include "InvocationTransaction.h"
 #include "Script.h"
-#include "../Hash.h"
 #include "../HexCoding.h"
 #include "../PrivateKey.h"
 #include "../PublicKey.h"
-#include "../proto/NEO.pb.h"
 #include "../proto/Common.pb.h"
+#include "../proto/NEO.pb.h"
 
-using namespace TW;
-using namespace TW::NEO;
 using namespace std;
+using namespace TW;
 
+namespace TW::NEO {
 
-Signer::Signer(const PrivateKey& priKey) : privateKey(std::move(priKey)) {
+Signer::Signer(const PrivateKey& priKey)
+    : privateKey(std::move(priKey)) {
     auto pub = privateKey.getPublicKey(TWPublicKeyTypeNIST256p1);
     publicKey = pub.bytes;
     address = Address(pub);
@@ -60,6 +59,9 @@ Proto::TransactionPlan Signer::plan(const Proto::SigningInput& input) {
 
         for (int i = 0; i < input.outputs_size(); i++) {
             required[input.outputs(i).asset_id()] = input.outputs(i).amount();
+            for (int j = 0; j < input.outputs(i).extra_outputs_size(); j++) {
+                required[input.outputs(i).asset_id()] += input.outputs(i).extra_outputs(j).amount();
+            }
         }
 
         for (int i = 0; i < input.inputs_size(); i++) {
@@ -69,6 +71,7 @@ Proto::TransactionPlan Signer::plan(const Proto::SigningInput& input) {
                 continue;
             }
 
+            // if the required has been enough, not need to add input
             if (input.inputs(i).asset_id() != input.gas_asset_id() &&
                 required[input.inputs(i).asset_id()] < available[input.inputs(i).asset_id()]) {
                 continue;
@@ -80,10 +83,10 @@ Proto::TransactionPlan Signer::plan(const Proto::SigningInput& input) {
 
         int existGASTransfer = -1;
         for (int i = 0; i < input.outputs_size(); i++) {
-            auto outputPlan = plan.add_outputs();
+            auto* outputPlan = plan.add_outputs();
 
-            if (available.find(input.inputs(i).asset_id()) == available.end() ||
-                available[input.outputs(i).asset_id()] < input.outputs(i).amount()) {
+            if (available.find(input.outputs(i).asset_id()) == available.end() ||
+                available[input.outputs(i).asset_id()] < required[input.outputs(i).asset_id()]) {
                 throw Common::Proto::SigningError(Common::Proto::Error_low_balance);
             }
 
@@ -94,16 +97,25 @@ Proto::TransactionPlan Signer::plan(const Proto::SigningInput& input) {
             int64_t availableAmount = available[input.outputs(i).asset_id()];
             outputPlan->set_available_amount(availableAmount);
             outputPlan->set_amount(input.outputs(i).amount());
-            outputPlan->set_change(availableAmount - input.outputs(i).amount());
 
             outputPlan->set_to_address(input.outputs(i).to_address());
             outputPlan->set_asset_id(input.outputs(i).asset_id());
             outputPlan->set_change_address(input.outputs(i).change_address());
+
+            auto changeAmount = availableAmount - input.outputs(i).amount();
+            for (int j = 0; j < input.outputs(i).extra_outputs_size(); j++) {
+                auto* extra_plan = outputPlan->add_extra_outputs();
+
+                extra_plan->set_to_address(input.outputs(i).extra_outputs(j).to_address());
+                extra_plan->set_amount(input.outputs(i).extra_outputs(j).amount());
+                changeAmount -= input.outputs(i).extra_outputs(j).amount();
+            }
+            outputPlan->set_change(changeAmount);
         }
 
         const int64_t SIGNATURE_SIZE = 103;
         int64_t transactionSize =
-            prepareUnsignedTransaction(input, plan, false).serialize().size() + SIGNATURE_SIZE;
+            prepareUnsignedTransaction(input, plan, false)->serialize().size() + SIGNATURE_SIZE;
 
         const int64_t LARGE_TX_SIZE = 1024;
         const int64_t MIN_FEE_FOR_LARGE_TX = 100000;
@@ -114,7 +126,7 @@ Proto::TransactionPlan Signer::plan(const Proto::SigningInput& input) {
             feeNeed = true;
         }
         if (feeNeed && existGASTransfer < 0) {
-            auto outputPlan = plan.add_outputs();
+            auto* outputPlan = plan.add_outputs();
             existGASTransfer = plan.outputs_size() - 1;
 
             if (available.find(input.gas_asset_id()) == available.end() ||
@@ -134,7 +146,7 @@ Proto::TransactionPlan Signer::plan(const Proto::SigningInput& input) {
 
         if (feeNeed) {
             transactionSize =
-                prepareUnsignedTransaction(input, plan, false).serialize().size() + SIGNATURE_SIZE;
+                prepareUnsignedTransaction(input, plan, false)->serialize().size() + SIGNATURE_SIZE;
             int64_t fee = 0;
             if (transactionSize >= LARGE_TX_SIZE) {
                 fee = MIN_FEE_FOR_LARGE_TX;
@@ -152,12 +164,35 @@ Proto::TransactionPlan Signer::plan(const Proto::SigningInput& input) {
     return plan;
 }
 
-Transaction Signer::prepareUnsignedTransaction(const Proto::SigningInput& input,
-                                               const Proto::TransactionPlan& plan, bool validate) {
+std::shared_ptr<Transaction> Signer::prepareUnsignedTransaction(const Proto::SigningInput& input,
+                                                                const Proto::TransactionPlan& plan,
+                                                                bool validate) {
+    std::shared_ptr<Transaction> transaction;
     try {
-        auto transaction = Transaction();
-        transaction.type = TransactionType::TT_ContractTransaction;
-        transaction.version = 0;
+        switch (input.transaction().transaction_oneof_case()) {
+        case Proto::Transaction::kNep5Transfer: {
+            auto t = std::make_shared<InvocationTransaction>();
+            auto nep5Tx = input.transaction().nep5_transfer();
+            t->script = Script::CreateNep5TransferScript(
+                parse_hex(nep5Tx.asset_id()), Address(nep5Tx.from()).toScriptHash(),
+                Address(nep5Tx.to()).toScriptHash(), load(nep5Tx.amount()), nep5Tx.script_with_ret());
+
+            transaction = t;
+            break;
+        }
+        case Proto::Transaction::kInvocationGeneric: {
+            auto t = std::make_shared<InvocationTransaction>();
+            auto script = input.transaction().invocation_generic().script();
+            t->script = Data(script.begin(), script.end());
+            t->gas = input.transaction().invocation_generic().gas();
+
+            transaction = t;
+            break;
+        }
+        default:
+            transaction = std::make_shared<Transaction>();
+            break;
+        }
 
         for (int i = 0; i < plan.inputs_size(); i++) {
             CoinReference coin;
@@ -166,14 +201,19 @@ Transaction Signer::prepareUnsignedTransaction(const Proto::SigningInput& input,
             std::reverse(prevHashReverse.begin(), prevHashReverse.end());
             coin.prevHash = load(prevHashReverse);
             coin.prevIndex = (uint16_t)plan.inputs(i).prev_index();
-            transaction.inInputs.push_back(coin);
+            transaction->inInputs.push_back(coin);
         }
 
         for (int i = 0; i < plan.outputs_size(); i++) {
             if (plan.outputs(i).asset_id() == input.gas_asset_id()) {
-                if (validate && plan.outputs(i).amount() + plan.outputs(i).change() + plan.fee() !=
-                                    plan.outputs(i).available_amount()) {
-                    throw Common::Proto::SigningError(Common::Proto::Error_wrong_fee);
+                if (validate) {
+                    auto sumAmount = plan.outputs(i).amount() + plan.outputs(i).change() + plan.fee();
+                    for (int j = 0; j < plan.outputs(i).extra_outputs_size(); j++) {
+                        sumAmount += plan.outputs(i).extra_outputs(j).amount();
+                    }
+                    if (sumAmount != plan.outputs(i).available_amount()) {
+                        throw Common::Proto::SigningError(Common::Proto::Error_wrong_fee);
+                    }
                 }
             }
 
@@ -183,7 +223,16 @@ Transaction Signer::prepareUnsignedTransaction(const Proto::SigningInput& input,
                 out.value = (int64_t)plan.outputs(i).amount();
                 auto scriptHash = TW::NEO::Address(plan.outputs(i).to_address()).toScriptHash();
                 out.scriptHash = load(scriptHash);
-                transaction.outputs.push_back(out);
+                transaction->outputs.push_back(out);
+
+                for (int j = 0; j < plan.outputs(i).extra_outputs_size(); j++) {
+                    TransactionOutput extraOut;
+                    extraOut.assetId = load(parse_hex(plan.outputs(i).asset_id()));
+                    extraOut.value = (int64_t)plan.outputs(i).extra_outputs(j).amount();
+                    auto extraScriptHash = TW::NEO::Address(plan.outputs(i).extra_outputs(j).to_address()).toScriptHash();
+                    extraOut.scriptHash = load(extraScriptHash);
+                    transaction->outputs.push_back(extraOut);
+                }
             }
 
             // change
@@ -193,20 +242,29 @@ Transaction Signer::prepareUnsignedTransaction(const Proto::SigningInput& input,
                 out.value = plan.outputs(i).change();
                 auto scriptHash = TW::NEO::Address(plan.outputs(i).change_address()).toScriptHash();
                 out.scriptHash = load(scriptHash);
-                transaction.outputs.push_back(out);
+                transaction->outputs.push_back(out);
             }
+        }
+
+        for (int i = 0; i < plan.attributes_size(); i++) {
+            TransactionAttribute attr;
+            attr.usage = (TransactionAttributeUsage)plan.attributes(i).usage();
+            attr._data.assign(plan.attributes(i).data().begin(), plan.attributes(i).data().end());
+
+            transaction->attributes.push_back(attr);
         }
         return transaction;
     } catch (...) {
     }
 
-    return Transaction();
+    return transaction;
 }
 
 Proto::SigningOutput Signer::sign(const Proto::SigningInput& input) noexcept {
     auto output = Proto::SigningOutput();
     try {
-        auto signer = Signer(PrivateKey(Data(input.private_key().begin(), input.private_key().end())));
+        auto signer =
+            Signer(PrivateKey(Data(input.private_key().begin(), input.private_key().end())));
         Proto::TransactionPlan plan;
         if (input.has_plan()) {
             plan = input.plan();
@@ -214,8 +272,8 @@ Proto::SigningOutput Signer::sign(const Proto::SigningInput& input) noexcept {
             plan = signer.plan(input);
         }
         auto transaction = prepareUnsignedTransaction(input, plan);
-        signer.sign(transaction);
-        auto signedTx = transaction.serialize();
+        signer.sign(*transaction);
+        auto signedTx = transaction->serialize();
 
         output.set_encoded(signedTx.data(), signedTx.size());
     } catch (const Common::Proto::SigningError& error) {
@@ -224,3 +282,42 @@ Proto::SigningOutput Signer::sign(const Proto::SigningInput& input) noexcept {
 
     return output;
 }
+
+Data Signer::signaturePreimage(const Proto::SigningInput& input) {
+    Proto::TransactionPlan p;
+    if (input.has_plan()) {
+        p = input.plan();
+    } else {
+        p = plan(input);
+    }
+    auto transaction = prepareUnsignedTransaction(input, p);
+    return transaction->serialize();
+}
+
+Data Signer::encodeTransaction(const Proto::SigningInput& input,
+                               const std::vector<PublicKey>& publicKeys,
+                               const std::vector<Data>& signatures) {
+    Proto::TransactionPlan p;
+    if (input.has_plan()) {
+        p = input.plan();
+    } else {
+        p = plan(input);
+    }
+    auto transaction = prepareUnsignedTransaction(input, p);
+    transaction->witnesses.clear();
+
+    if (publicKeys.size() != signatures.size()) {
+        return {Data()};
+    }
+
+    for (size_t i = 0; i < publicKeys.size(); i++) {
+        Witness witness;
+        witness.invocationScript = Script::CreateInvocationScript(signatures[i]);
+        witness.verificationScript = Script::CreateSignatureRedeemScript(publicKeys[i].bytes);
+        transaction->witnesses.push_back(witness);
+    }
+
+    return transaction->serialize();
+}
+
+} // namespace TW::NEO

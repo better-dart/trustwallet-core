@@ -1,13 +1,13 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #include "Encrypt.h"
 #include "Data.h"
 #include <TrezorCrypto/aes.h>
 #include <cassert>
+#include <cstring>
+#include <stdexcept>
 
 namespace TW::Encrypt {
 

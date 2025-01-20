@@ -1,8 +1,6 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 import Foundation
 
@@ -18,6 +16,11 @@ extension Data {
 
         // Check odd length hex string
         if string.count % 2 != 0 {
+            return nil
+        }
+
+        // Check odd characters
+        if string.contains(where: { !$0.isHexDigit }) {
             return nil
         }
 
@@ -44,6 +47,12 @@ extension Data {
     private static func value(of nibble: UInt8) -> UInt8? {
         guard let letter = String(bytes: [nibble], encoding: .ascii) else { return nil }
         return UInt8(letter, radix: 16)
+    }
+
+    /// Reverses and parses hex string as `Data`
+    public static func reverse(hexString: String) -> Data {
+        guard let data = Data(hexString: hexString) else { return Data() }
+        return Data(data.reversed())
     }
 
     /// Returns the hex string representation of the data.

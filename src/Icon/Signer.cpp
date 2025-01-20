@@ -1,8 +1,6 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #include "Signer.h"
 
@@ -10,17 +8,13 @@
 #include "../Hash.h"
 #include "../HexCoding.h"
 #include "../PrivateKey.h"
-#include "../uint256.h"
 
-#include <boost/multiprecision/cpp_int.hpp>
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
-#include <iostream>
 #include <sstream>
 
-using namespace TW;
-using namespace TW::Icon;
+namespace TW::Icon {
 
 std::string to_hex(int64_t i) {
     std::stringstream ss;
@@ -59,6 +53,10 @@ std::string Signer::preImage() const noexcept {
     return txHash;
 }
 
+TW::Data Signer::hashImage(const Data& image) const {
+    return Hash::sha3_256(image);
+}
+
 std::string Signer::encode(const Data& signature) const noexcept {
     auto json = nlohmann::json();
     json["from"] = input.from_address();
@@ -92,3 +90,5 @@ Proto::SigningOutput Signer::sign() const noexcept {
 
     return output;
 }
+
+} // namespace TW::Icon

@@ -1,8 +1,6 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #include "../Base58.h"
 #include "../Bitcoin/Address.h"
@@ -13,25 +11,23 @@
 
 #include <cstring>
 
-using namespace TW::Bitcoin;
-
 bool TWBitcoinAddressEqual(struct TWBitcoinAddress *_Nonnull lhs, struct TWBitcoinAddress *_Nonnull rhs) {
     return lhs->impl == rhs->impl;
 }
 
 bool TWBitcoinAddressIsValid(TWData *_Nonnull data) {
-    return TWDataSize(data) == Address::size;
+    return TWDataSize(data) == TW::Bitcoin::Address::size;
 }
 
 bool TWBitcoinAddressIsValidString(TWString *_Nonnull string) {
     auto& s = *reinterpret_cast<const std::string*>(string);
-    return Address::isValid(s);
+    return TW::Bitcoin::Address::isValid(s);
 }
 
 struct TWBitcoinAddress *_Nullable TWBitcoinAddressCreateWithString(TWString *_Nonnull string) {
     auto& s = *reinterpret_cast<const std::string*>(string);
     try {
-        return new TWBitcoinAddress{ Address(s) };
+        return new TWBitcoinAddress{ TW::Bitcoin::Address(s) };
     } catch (...) {
         return nullptr;
     }
@@ -40,7 +36,7 @@ struct TWBitcoinAddress *_Nullable TWBitcoinAddressCreateWithString(TWString *_N
 struct TWBitcoinAddress *_Nullable TWBitcoinAddressCreateWithData(TWData *_Nonnull data) {
     const auto& d = *reinterpret_cast<const TW::Data*>(data);
     try {
-        return new TWBitcoinAddress{ Address(d) };
+        return new TWBitcoinAddress{ TW::Bitcoin::Address(d) };
     } catch (...) {
         return nullptr;
     }
@@ -48,7 +44,7 @@ struct TWBitcoinAddress *_Nullable TWBitcoinAddressCreateWithData(TWData *_Nonnu
 
 struct TWBitcoinAddress *_Nullable TWBitcoinAddressCreateWithPublicKey(struct TWPublicKey *_Nonnull publicKey, uint8_t prefix) {
     try {
-        return new TWBitcoinAddress{ Address(publicKey->impl, prefix) };
+        return new TWBitcoinAddress{ TW::Bitcoin::Address(publicKey->impl, prefix) };
     } catch (...) {
         return nullptr;
     }
@@ -67,5 +63,5 @@ uint8_t TWBitcoinAddressPrefix(struct TWBitcoinAddress *_Nonnull address) {
 }
 
 TWData *_Nonnull TWBitcoinAddressKeyhash(struct TWBitcoinAddress *_Nonnull address) {
-    return TWDataCreateWithBytes(address->impl.bytes.data() + 1, Address::size - 1);
+    return TWDataCreateWithBytes(address->impl.bytes.data() + 1, TW::Bitcoin::Address::size - 1);
 }

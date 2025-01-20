@@ -1,8 +1,6 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #include "ValueEncoder.h"
 
@@ -46,7 +44,7 @@ inline Data paddedOnLeft(const Data& inout) {
 }
 
 void ValueEncoder::encodeUInt256(const uint256_t& value, Data& inout) {
-    append(inout, paddedOnLeft(store(value)));
+    append(inout, store(value, 32));
 }
 
 /// Encoding primitive: encode a number of bytes by taking hash

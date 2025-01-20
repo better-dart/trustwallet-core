@@ -1,8 +1,6 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #pragma once
 
@@ -33,7 +31,7 @@ class Base58Address {
 
     /// Determines whether a string makes a valid address.
     static bool isValid(const std::string& string) {
-        const auto decoded = Base58::bitcoin.decodeCheck(string);
+        const auto decoded = Base58::decodeCheck(string);
         if (decoded.size() != Base58Address::size) {
             return false;
         }
@@ -43,7 +41,7 @@ class Base58Address {
     /// Determines whether a string makes a valid address, and the prefix is
     /// within the valid set.
     static bool isValid(const std::string& string, const std::vector<Data>& validPrefixes) {
-        const auto decoded = Base58::bitcoin.decodeCheck(string);
+        const auto decoded = Base58::decodeCheck(string);
         if (decoded.size() != Base58Address::size) {
             return false;
         }
@@ -59,7 +57,7 @@ class Base58Address {
 
     /// Initializes an address with a string representation.
     explicit Base58Address(const std::string& string) {
-        const auto decoded = Base58::bitcoin.decodeCheck(string);
+        const auto decoded = Base58::decodeCheck(string);
         if (decoded.size() != Base58Address::size) {
             throw std::invalid_argument("Invalid address string");
         }
@@ -80,13 +78,13 @@ class Base58Address {
         if (publicKey.type != TWPublicKeyTypeSECP256k1) {
             throw std::invalid_argument("Bitcoin::Address needs a compressed SECP256k1 public key.");
         }
-        const auto data = publicKey.hash(prefix, Hash::sha256ripemd);
+        const auto data = publicKey.hash(prefix, Hash::HasherSha256ripemd);
         std::copy(data.begin(), data.end(), bytes.begin());
     }
 
     /// Returns a string representation of the address.
     std::string string() const {
-        return Base58::bitcoin.encodeCheck(bytes);
+        return Base58::encodeCheck(bytes);
     }
 };
 

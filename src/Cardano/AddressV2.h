@@ -1,8 +1,6 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #pragma once
 
@@ -20,7 +18,7 @@ namespace TW::Cardano {
  * Derivation is BIP39, default derivation path is "m/44'/1815'/0'/0/0", with last element being the account number.
  * Curve is ED25519 with special variations, custom logic in HDWallet and TrezorCrypto lib.
  * Private key is ED25519: 32-byte PK is extended with 32-byte extra extension, and 32-byte chain code.
- * Private key is derived from mnemonic raw entropy (not seed, as in other cases); 96-byte secret is generated (pk, extrension, and chain code).
+ * Private key is derived from mnemonic raw entropy (not seed, as in other cases); 96-byte secret is generated (pk, extension, and chain code).
  * Public key is 64-byte: the 32-byte ED25519 public key plus the 32-byte chain code of the PK.
  * Address derivation: Only V2, type 0 (=public key) addresses are generated.
  * - CBOR binary scheme is used inside addresses.
@@ -46,7 +44,7 @@ class AddressV2 {
     Data attrs;
 
     /// Type; 0: public key.
-    TW::byte type;
+    TW::byte type{};
 
     static const TW::byte PayloadTag = 24;
     
@@ -77,8 +75,3 @@ inline bool operator==(const AddressV2& lhs, const AddressV2& rhs) {
 }
 
 } // namespace TW::Cardano
-
-/// Wrapper for C interface.
-struct TWCardanoAddressV2 {
-    TW::Cardano::AddressV2 impl;
-};

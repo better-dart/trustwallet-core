@@ -1,22 +1,16 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #include "Address.h"
 
 #include "../Base32.h"
-#include "../Hash.h"
-#include "../HexCoding.h"
 
 #include <TrezorCrypto/blake2b.h>
 
 #include <algorithm>
-#include <cassert>
-#include <cmath>
 
-using namespace TW::Nimiq;
+namespace TW::Nimiq {
 
 static const char* BASE32_ALPHABET_NIMIQ = "0123456789ABCDEFGHJKLMNPQRSTUVXY";
 
@@ -94,7 +88,7 @@ Address::Address(const std::vector<uint8_t>& data) {
 
 Address::Address(const PublicKey& publicKey) {
     auto hash = std::array<uint8_t, 32>();
-    blake2b(publicKey.bytes.data(), 32, hash.data(), hash.size());
+    tc_blake2b(publicKey.bytes.data(), 32, hash.data(), hash.size());
     std::copy(hash.begin(), hash.begin() + Address::size, bytes.begin());
 }
 
@@ -150,3 +144,5 @@ static inline int check_add(int check, int num) {
         ;
     return (check + num) % 97;
 }
+
+} // namespace TW::Nimiq

@@ -1,12 +1,11 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #pragma once
 
 #include "Address.h"
+#include "proto/Nimiq.pb.h"
 
 namespace TW::Nimiq {
 
@@ -22,16 +21,22 @@ class Transaction {
     uint64_t fee;
     // Validity start (block) height
     uint32_t vsh;
+    // Network ID
+    Proto::NetworkId networkId;
     // Sender signature
     std::array<uint8_t, 64> signature;
 
     Transaction(const std::array<uint8_t, 32>& sender, const Address& dest, uint64_t amount,
-                uint64_t fee, uint32_t vsh)
-        : sender_pub_key(sender), destination(dest), amount(amount), fee(fee), vsh(vsh) {}
+                uint64_t fee, uint32_t vsh, Proto::NetworkId networkId)
+        : sender_pub_key(sender), destination(dest), amount(amount), fee(fee), vsh(vsh), networkId(networkId) {}
 
   public:
     std::vector<uint8_t> serialize() const;
     std::vector<uint8_t> getPreImage() const;
+
+  private:
+    bool isAlbatross() const;
+    uint8_t consensusNetworkId() const;
 };
 
 } // namespace TW::Nimiq

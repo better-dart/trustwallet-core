@@ -1,8 +1,6 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #pragma once
 
@@ -10,6 +8,7 @@
 
 TW_EXTERN_C_BEGIN
 
+/// Bitcoin SIGHASH type.
 TW_EXPORT_ENUM(uint32_t)
 enum TWBitcoinSigHashType {
     TWBitcoinSigHashTypeAll = 0x01,
@@ -20,9 +19,17 @@ enum TWBitcoinSigHashType {
     TWBitcoinSigHashTypeAnyoneCanPay = 0x80
 };
 
+/// Determines if the given sig hash is single
+///
+/// \param type sig hash type
+/// \return true if the sigh hash type is single, false otherwise
 TW_EXPORT_METHOD
 bool TWBitcoinSigHashTypeIsSingle(enum TWBitcoinSigHashType type);
 
+/// Determines if the given sig hash is none
+///
+/// \param type sig hash type
+/// \return true if the sigh hash type is none, false otherwise
 TW_EXPORT_METHOD
 bool TWBitcoinSigHashTypeIsNone(enum TWBitcoinSigHashType type);
 

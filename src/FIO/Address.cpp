@@ -1,19 +1,18 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
+#include "Address.h"
 #include "../Base58.h"
 #include "../BinaryCoding.h"
-#include "Address.h"
 
 #include <TrezorCrypto/ripemd160.h>
 
 #include <stdexcept>
 
 using namespace TW;
-using namespace TW::FIO;
+
+namespace TW::FIO {
 
 bool Address::isValid(const std::string& string) {
     return decodeKeyData(string).has_value();
@@ -56,7 +55,7 @@ std::optional<Data> Address::decodeKeyData(const std::string& string) {
         return {};
     }
 
-    const Data& decodedBytes = Base58::bitcoin.decode(string.substr(prefixSize));
+    const Data& decodedBytes = Base58::decode(string.substr(prefixSize));
     if (decodedBytes.size() != size) {
         return {};
     }
@@ -93,7 +92,7 @@ Address::Address(const PublicKey& publicKey) {
 
 /// Returns a string representation of the FIO address.
 std::string Address::string() const {
-    return prefix() + Base58::bitcoin.encode(bytes);
+    return prefix() + Base58::encode(bytes);
 }
 
 PublicKey Address::publicKey() const {
@@ -101,3 +100,5 @@ PublicKey Address::publicKey() const {
     const Data keyData = TW::data(bytes.data(), PublicKey::secp256k1Size);
     return PublicKey(keyData, TWPublicKeyTypeSECP256k1);
 }
+
+} // namespace TW::FIO

@@ -1,13 +1,11 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #pragma once
 
 #include "OperationList.h"
-#include "../Data.h"
+#include "Data.h"
 #include "../PrivateKey.h"
 #include "../proto/Tezos.pb.h"
 
@@ -22,9 +20,12 @@ class Signer {
     static Proto::SigningOutput sign(const Proto::SigningInput& input) noexcept;
     /// Signs a json Proto::SigningInput with private key
     static std::string signJSON(const std::string& json, const Data& key);
+
   public:
     /// Signs the given transaction.
     Data signOperationList(const PrivateKey& privateKey, const OperationList& operationList);
+    Data buildUnsignedTx(const OperationList& operationList);
+    Data buildSignedTx(const OperationList& operationList, Data signature);
     Data signData(const PrivateKey& privateKey, const Data& data);
 };
 

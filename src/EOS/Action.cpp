@@ -1,16 +1,11 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #include "Action.h"
 #include "../HexCoding.h"
-#include "../EOS/Serialization.h"
 
-using namespace TW;
-using namespace TW::EOS;
-using json = nlohmann::json;
+namespace TW::EOS {
 
 void PermissionLevel::serialize(Data& o) const {
     actor.serialize(o);
@@ -41,14 +36,14 @@ json Action::serialize() const noexcept {
     return obj;
 }
 
-TransferAction::TransferAction( const std::string& currency,
-                                const std::string& from, 
-                                const std::string& to, 
-                                const Asset& asset, 
-                                const std::string& memo) {
+TransferAction::TransferAction(const std::string& currency,
+                               const std::string& from,
+                               const std::string& to,
+                               const Asset& asset,
+                               const std::string& memo) {
     account = Name(currency);
     name = Name("transfer");
-    authorization.push_back(PermissionLevel(Name(from), Name("active")));
+    authorization.emplace_back(PermissionLevel(Name(from), Name("active")));
 
     setData(from, to, asset, memo);
 }
@@ -63,3 +58,5 @@ void TransferAction::setData(const std::string& from, const std::string& to, con
     asset.serialize(data);
     encodeString(memo, data);
 }
+
+} // namespace TW::EOS

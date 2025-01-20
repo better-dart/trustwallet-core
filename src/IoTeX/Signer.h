@@ -1,14 +1,12 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #pragma once
 
 #include "Data.h"
-
 #include "proto/IoTeX.pb.h"
+#include "../PrivateKey.h"
 
 namespace TW::IoTeX {
 
@@ -17,6 +15,8 @@ class Signer {
   public:
     /// Signs a Proto::SigningInput transaction
     static Proto::SigningOutput sign(const Proto::SigningInput& input) noexcept;
+    /// Build the compile output
+    static Proto::SigningOutput compile(const Proto::SigningInput& input, const Data& signature, const TW::PublicKey& pubKey) noexcept;
   public:
     Proto::SigningInput input;
     Proto::ActionCore action;
@@ -36,7 +36,8 @@ class Signer {
 
     /// Computes the transaction hash
     Data hash() const;
-
+    /// Get PreImage transaction data
+    std::string signaturePreimage() const;
   protected:
     /// Converts to proto ActionCore from transaction input
     void toActionCore();

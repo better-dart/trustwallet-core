@@ -1,20 +1,14 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #include "Transaction.h"
 #include "Address.h"
 #include "ParamsBuilder.h"
 
-#include "../Hash.h"
-#include "../HexCoding.h"
-
 #include <string>
 
-using namespace TW;
-using namespace TW::Ontology;
+namespace TW::Ontology {
 
 const std::string Transaction::ZERO_PAYER = "AFmseVrdL9f9oyCzZefL9tG6UbvhPbdYzM";
 
@@ -25,7 +19,7 @@ std::vector<uint8_t> Transaction::serializeUnsigned() {
     builder.pushBack(nonce);
     builder.pushBack(gasPrice);
     builder.pushBack(gasLimit);
-    builder.pushBack(Address(payer).data);
+    builder.pushBack(Address(payer)._data);
     if (!payload.empty()) {
         builder.pushVar(payload);
     }
@@ -49,7 +43,7 @@ std::vector<uint8_t> Transaction::serialize() {
 
 std::vector<uint8_t> Transaction::txHash() {
     auto txSerialized = Transaction::serializeUnsigned();
-    return Hash::sha256(Hash::sha256(txSerialized));
+    return Hash::sha256(Hash::sha256(Hash::sha256(txSerialized)));
 }
 
 std::vector<uint8_t> Transaction::serialize(const PublicKey& pk) {
@@ -58,3 +52,5 @@ std::vector<uint8_t> Transaction::serialize(const PublicKey& pk) {
     builder.pushBack((uint8_t)0xAC);
     return builder.getBytes();
 }
+
+} // namespace TW::Ontology

@@ -1,8 +1,6 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #include <TrustWalletCore/TWFIOAccount.h>
 
@@ -12,7 +10,6 @@
 #include <string>
 
 using namespace TW;
-using namespace TW::FIO;
 
 struct TWFIOAccount {
     std::string description;
@@ -20,11 +17,11 @@ struct TWFIOAccount {
 
 struct TWFIOAccount *_Nullable TWFIOAccountCreateWithString(TWString *_Nonnull string) {
     const auto& account = *reinterpret_cast<const std::string*>(string);
-    if (Address::isValid(account)) {
-        const auto addr = Address(account);
-        return new TWFIOAccount{Actor::actor(addr)};
+    if (FIO::Address::isValid(account)) {
+        const auto addr = FIO::Address(account);
+        return new TWFIOAccount{FIO::Actor::actor(addr)};
     }
-    if (Actor::validate(account)) {
+    if (FIO::Actor::validate(account)) {
         return new TWFIOAccount{account};
     }
     return nullptr;

@@ -1,8 +1,6 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #include "Address.h"
 
@@ -12,10 +10,10 @@
 #include <cassert>
 #include <stdexcept>
 
-using namespace TW::Tron;
+namespace TW::Tron {
 
 bool Address::isValid(const std::string& string) {
-    const auto decoded = Base58::bitcoin.decodeCheck(string);
+    const auto decoded = Base58::decodeCheck(string);
     if (decoded.size() != Address::size) {
         return false;
     }
@@ -36,3 +34,5 @@ Address::Address(const PublicKey& publicKey) {
     bytes[0] = prefix;
     std::copy(keyhash.end() - size + 1, keyhash.end(), bytes.begin() + 1);
 }
+
+} // namespace TW::Tron

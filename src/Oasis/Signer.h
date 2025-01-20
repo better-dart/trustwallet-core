@@ -1,15 +1,13 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #pragma once
 
 #include <utility>
 
 
-#include "../Data.h"
+#include "Data.h"
 #include "../PrivateKey.h"
 #include "../proto/Oasis.pb.h"
 #include "Transaction.h"
@@ -18,6 +16,11 @@ namespace TW::Oasis {
 
 /// Helper class that performs Oasis transaction signing.
 class Signer {
+private:
+    Transaction buildTransfer() const;
+    Escrow buildEscrow() const;
+    ReclaimEscrow buildReclaimEscrow() const;
+
 public:
     Proto::SigningInput input;
 
@@ -34,13 +37,16 @@ public:
     ///
     /// \returns the transaction signature or an empty vector if there is an
     /// error.
-    Data sign(Transaction& tx) const;
+    template <typename T>
+    Data signTransaction(T& tx) const;
 
     /// Builds a signed transaction.
     ///
     /// \returns the signed transaction data or an empty vector if there is an
     /// error.
     Data build() const;
+    Data signaturePreimage() const;
+    Proto::SigningOutput compile(const Data& signature, const PublicKey& publicKey) const;
 };
 
 } // namespace TW::Oasis

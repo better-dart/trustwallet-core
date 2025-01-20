@@ -1,18 +1,17 @@
-// Copyright © 2017-2021 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #include "Mnemonic.h"
 
 #include <TrezorCrypto/bip39_english.h>
 #include <TrezorCrypto/bip39.h>
 
-#include <string.h>
+#include <algorithm>
 #include <string>
 #include <vector>
 #include <cassert>
+#include <cstring>
 
 namespace TW {
 
@@ -26,13 +25,16 @@ inline const char* const* mnemonicWordlist() { return wordlist; }
 
 bool Mnemonic::isValidWord(const std::string& word) {
     const char* wordC = word.c_str();
+    const auto len = word.length();
+    // Although this operation is not security-critical, we aim for constant-time operation here as well
+    // (i.e., no early exit on match)
+    auto found = false;
     for (const char* const* w = mnemonicWordlist(); *w != nullptr; ++w) {
-        if (strncmp(*w, wordC, word.length()) == 0) {
-            return true;
+        if (std::string(*w).size() == len && strncmp(*w, wordC, len) == 0) {
+            found = true;
         }
     }
-    // not found
-    return false;
+    return found;
 }
 
 std::string Mnemonic::suggest(const std::string& prefix) {
@@ -52,7 +54,7 @@ std::string Mnemonic::suggest(const std::string& prefix) {
         if ((*word)[0] == prefixLo[0]) {
             if (strncmp(*word, prefixLoC, prefixLo.length()) == 0) {
                 // we have a match
-                result.push_back(*word);
+                result.emplace_back(*word);
                 if (result.size() >= SuggestMaxCount) {
                     break; // enough results
                 }
@@ -71,4 +73,4 @@ std::string Mnemonic::suggest(const std::string& prefix) {
     return resultString;
 }
 
-}
+} // namespace TW

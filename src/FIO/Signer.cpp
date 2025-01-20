@@ -1,8 +1,6 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #include "Signer.h"
 #include "Address.h"
@@ -25,12 +23,20 @@ using namespace std;
 
 Proto::SigningOutput Signer::sign(const Proto::SigningInput& input) noexcept {
     FIO::Proto::SigningOutput output;
-    try {    
+    try {
+        const string actionName = TransactionBuilder::actionName(input);
         const string json = TransactionBuilder::sign(input);
         output.set_json(json);
+        output.set_action_name(actionName);
     } catch(const std::exception& e) {
         output.set_error(Common::Proto::Error_internal);
     }
+    return output;
+}
+
+Proto::SigningOutput Signer::compile(const Proto::SigningInput& input, const Data& signature) noexcept {
+    FIO::Proto::SigningOutput output;
+    output = TransactionBuilder::buildSigningOutput(input, signature);
     return output;
 }
 
@@ -40,14 +46,14 @@ Data Signer::signData(const PrivateKey& privKey, const Data& data) {
     return signature;
 }
 
-std::string Signer::signatureToBsase58(const Data& sig) {
+std::string Signer::signatureToBase58(const Data& sig) {
     Data sigWithSuffix(sig);
     append(sigWithSuffix, TW::data(SignatureSuffix));
     // take hash, ripemd, first 4 bytes 
     Data hash = Hash::ripemd(sigWithSuffix);
     Data sigWithChecksum(sig);
     append(sigWithChecksum, TW::data(hash.data(), 4));
-    string s = SignaturePrefix + Base58::bitcoin.encode(sigWithChecksum);
+    string s = SignaturePrefix + Base58::encode(sigWithChecksum);
     return s;
 }
 
@@ -55,8 +61,8 @@ bool Signer::verify(const PublicKey& pubKey, const Data& data, const Data& signa
     return pubKey.verify(TW::data(signature.data() + 1, signature.size() - 1), data);
 }
 
-// canonical check for FIO, both R and S lenght is 32
-int Signer::isCanonical(uint8_t by, uint8_t sig[64]) {
+// canonical check for FIO, both R and S length is 32
+int Signer::isCanonical([[maybe_unused]] uint8_t by, uint8_t sig[64]) {
     return !(sig[0] & 0x80)
         && !(sig[0] == 0 && !(sig[1] & 0x80))
         && !(sig[32] & 0x80)

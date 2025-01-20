@@ -1,18 +1,18 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #include "Signer.h"
 #include "../Ethereum/RLP.h"
 #include "../HexCoding.h"
+#include <google/protobuf/util/json_util.h>
 
+namespace TW::Harmony {
 
-using namespace TW;
-using namespace TW::Harmony;
+using INVALID_ENUM = std::integral_constant<uint8_t, 99>;
+using RLP = TW::Ethereum::RLP;
 
-std::tuple<uint256_t, uint256_t, uint256_t> Signer::values(const uint256_t &chainID,
+std::tuple<uint256_t, uint256_t, uint256_t> Signer::values(const uint256_t& chainID,
                                                            const Data& signature) noexcept {
     auto r = load(Data(signature.begin(), signature.begin() + 32));
     auto s = load(Data(signature.begin() + 32, signature.begin() + 64));
@@ -22,18 +22,18 @@ std::tuple<uint256_t, uint256_t, uint256_t> Signer::values(const uint256_t &chai
 }
 
 std::tuple<uint256_t, uint256_t, uint256_t>
-Signer::sign(const uint256_t &chainID, const PrivateKey &privateKey, const Data& hash) noexcept {
+Signer::sign(const uint256_t& chainID, const PrivateKey& privateKey, const Data& hash) noexcept {
     auto signature = privateKey.sign(hash, TWCurveSECP256k1);
     return values(chainID, signature);
 }
 
 template <typename T>
-Proto::SigningOutput Signer::prepareOutput(const Data& encoded, const T &transaction) noexcept {
+Proto::SigningOutput Signer::prepareOutput(const Data& encoded, const T& transaction) noexcept {
     auto protoOutput = Proto::SigningOutput();
 
-    auto v = store(transaction.v);
-    auto r = store(transaction.r);
-    auto s = store(transaction.s);
+    auto v = store(transaction.v, 1);
+    auto r = store(transaction.r, 32);
+    auto s = store(transaction.s, 32);
 
     protoOutput.set_encoded(encoded.data(), encoded.size());
     protoOutput.set_v(v.data(), v.size());
@@ -44,48 +44,51 @@ Proto::SigningOutput Signer::prepareOutput(const Data& encoded, const T &transac
 }
 
 Proto::SigningOutput Signer::sign(const Proto::SigningInput &input) noexcept {
-    if (input.has_transaction_message()) {
-        return signTransaction(input);
+    auto output = Proto::SigningOutput();
+    try {
+
+        if (input.has_transaction_message()) {
+            return signTransaction(input);
+        }
+
+        if (input.has_staking_message()) {
+            Harmony::Proto::StakingMessage stakingMessage = input.staking_message();
+            if (stakingMessage.has_create_validator_message()) {
+                return Signer::signStaking<CreateValidator>(input, &Signer::buildUnsignedCreateValidator);
+            }
+            if (stakingMessage.has_edit_validator_message()) {
+                return Signer::signStaking<EditValidator>(input, &Signer::buildUnsignedEditValidator);
+            }
+            if (stakingMessage.has_delegate_message()) {
+                return Signer::signStaking<Delegate>(input, &Signer::buildUnsignedDelegate);
+            }
+            if (stakingMessage.has_undelegate_message()) {
+                return Signer::signStaking<Undelegate>(input, &Signer::buildUnsignedUndelegate);
+            }
+            if (stakingMessage.has_collect_rewards()) {
+                return Signer::signStaking<CollectRewards>(input, &Signer::buildUnsignedCollectRewards);
+            }
+        }
+        output.set_error(Common::Proto::Error_invalid_params);
+        output.set_error_message("Invalid message");
+    } catch (const std::exception &e) {
+        output.set_error(Common::Proto::Error_invalid_params);
+        output.set_error_message(e.what());
     }
-    if (input.has_staking_message()) {
-        Harmony::Proto::StakingMessage stakingMessage = input.staking_message();
-        if (stakingMessage.has_create_validator_message()) {
-            return signCreateValidator(input);
-        }
-        if (stakingMessage.has_edit_validator_message()) {
-            return signEditValidator(input);
-        }
-        if (stakingMessage.has_delegate_message()) {
-            return signDelegate(input);
-        }
-        if (stakingMessage.has_undelegate_message()) {
-            return signUndelegate(input);
-        }
-        if (stakingMessage.has_collect_rewards()) {
-            return signCollectRewards(input);
-        }
-    }
-    return Proto::SigningOutput();
+    return output;
 }
 
-Proto::SigningOutput Signer::signTransaction(const Proto::SigningInput &input) noexcept {
+std::string Signer::signJSON(const std::string& json, const Data& key) {
+    auto input = Proto::SigningInput();
+    google::protobuf::util::JsonStringToMessage(json, &input);
+    input.set_private_key(key.data(), key.size());
+    return hex(Signer::sign(input).encoded());
+}
+
+Proto::SigningOutput Signer::signTransaction(const Proto::SigningInput& input) {
     auto key = PrivateKey(Data(input.private_key().begin(), input.private_key().end()));
-    Address toAddr;
-    if (!Address::decode(input.transaction_message().to_address(), toAddr)) {
-        // invalid to address
-        return Proto::SigningOutput();
-    }
-    auto transaction = Transaction(
-        /* nonce: */ load(input.transaction_message().nonce()),
-        /* gasPrice: */ load(input.transaction_message().gas_price()),
-        /* gasLimit: */ load(input.transaction_message().gas_limit()),
-        /* fromShardID */ load(input.transaction_message().from_shard_id()),
-        /* toShardID */ load(input.transaction_message().to_shard_id()),
-        /* to: */ toAddr,
-        /* amount: */ load(input.transaction_message().amount()),
-        /* payload: */
-        Data(input.transaction_message().payload().begin(),
-             input.transaction_message().payload().end()));
+
+    auto transaction = Signer::buildUnsignedTransaction(input);
 
     auto signer = Signer(uint256_t(load(input.chain_id())));
     auto hash = signer.hash(transaction);
@@ -96,8 +99,56 @@ Proto::SigningOutput Signer::signTransaction(const Proto::SigningInput &input) n
     return prepareOutput<Transaction>(encoded, transaction);
 }
 
-Proto::SigningOutput Signer::signCreateValidator(const Proto::SigningInput &input) noexcept {
+template <typename T>
+uint8_t Signer::getEnum() noexcept {
+    return INVALID_ENUM::value;
+}
+
+template <>
+uint8_t Signer::getEnum<CreateValidator>() noexcept {
+    return DirectiveCreateValidator;
+}
+
+template <>
+uint8_t Signer::getEnum<EditValidator>() noexcept {
+    return DirectiveEditValidator;
+}
+
+template <>
+uint8_t Signer::getEnum<Delegate>() noexcept {
+    return DirectiveDelegate;
+}
+
+template <>
+uint8_t Signer::getEnum<Undelegate>() noexcept {
+    return DirectiveUndelegate;
+}
+
+template <>
+uint8_t Signer::getEnum<CollectRewards>() noexcept {
+    return DirectiveCollectRewards;
+}
+
+template <typename T>
+Proto::SigningOutput Signer::signStaking(const Proto::SigningInput &input, function<T(const Proto::SigningInput &input)> func) {
     auto key = PrivateKey(Data(input.private_key().begin(), input.private_key().end()));
+    auto stakingTx = buildUnsignedStakingTransaction(input, func);
+
+    auto signer = Signer(uint256_t(load(input.chain_id())));
+    auto hash = signer.hash<T>(stakingTx);
+    signer.sign(key, hash, stakingTx);
+    auto encoded = signer.rlpNoHash<T>(stakingTx, true);
+
+    return prepareOutput<Staking<T>>(encoded, stakingTx);
+}
+
+CreateValidator Signer::buildUnsignedCreateValidator(const Proto::SigningInput &input) {
+    Address validatorAddr;
+    if (!Address::decode(input.staking_message().create_validator_message().validator_address(),
+                         validatorAddr)) {
+        throw std::invalid_argument("Invalid address");
+    }
+
     auto description = Description(
         /* name */ input.staking_message().create_validator_message().description().name(),
         /* identity */ input.staking_message().create_validator_message().description().identity(),
@@ -141,19 +192,14 @@ Proto::SigningOutput Signer::signCreateValidator(const Proto::SigningInput &inpu
     auto commissionRates = CommissionRate(rate, maxRate, maxChangeRate);
     std::vector<Data> slotPubKeys;
     for (auto pk : input.staking_message().create_validator_message().slot_pub_keys()) {
-        slotPubKeys.push_back(Data(pk.begin(), pk.end()));
+        slotPubKeys.emplace_back(Data(pk.begin(), pk.end()));
     }
     std::vector<Data> slotKeySigs;
     for (auto sig : input.staking_message().create_validator_message().slot_key_sigs()) {
-        slotKeySigs.push_back(Data(sig.begin(), sig.end()));
+        slotKeySigs.emplace_back(Data(sig.begin(), sig.end()));
     }
-    Address validatorAddr;
-    if (!Address::decode(input.staking_message().create_validator_message().validator_address(),
-                         validatorAddr)) {
-        // invalid to address
-        return Proto::SigningOutput();
-    }
-    auto createValidator = CreateValidator(
+
+    return CreateValidator(
         /* ValidatorAddress */ validatorAddr,
         /* Description */ description,
         /* Commission */ commissionRates,
@@ -164,22 +210,15 @@ Proto::SigningOutput Signer::signCreateValidator(const Proto::SigningInput &inpu
         /* PubKey */ slotPubKeys,
         /* BlsSig */ slotKeySigs,
         /* Amount */ load(input.staking_message().create_validator_message().amount()));
-
-    auto stakingTx = Staking<CreateValidator>(
-        DirectiveCreateValidator, createValidator, load(input.staking_message().nonce()),
-        load(input.staking_message().gas_price()), load(input.staking_message().gas_limit()),
-        load(input.chain_id()), 0, 0);
-
-    auto signer = Signer(uint256_t(load(input.chain_id())));
-    auto hash = signer.hash<CreateValidator>(stakingTx);
-    signer.sign(key, hash, stakingTx);
-    auto encoded = signer.rlpNoHash<CreateValidator>(stakingTx, true);
-
-    return prepareOutput<Staking<CreateValidator>>(encoded, stakingTx);
 }
 
-Proto::SigningOutput Signer::signEditValidator(const Proto::SigningInput &input) noexcept {
-    auto key = PrivateKey(Data(input.private_key().begin(), input.private_key().end()));
+EditValidator Signer::buildUnsignedEditValidator(const Proto::SigningInput &input) {
+
+    Address validatorAddr;
+    if (!Address::decode(input.staking_message().edit_validator_message().validator_address(),
+                         validatorAddr)) {
+        throw std::invalid_argument("Invalid address");
+    }
 
     auto description = Description(
         /* name */ input.staking_message().edit_validator_message().description().name(),
@@ -198,13 +237,7 @@ Proto::SigningOutput Signer::signEditValidator(const Proto::SigningInput &input)
             load(input.staking_message().edit_validator_message().commission_rate().precision()));
     }
 
-    Address validatorAddr;
-    if (!Address::decode(input.staking_message().edit_validator_message().validator_address(),
-                         validatorAddr)) {
-        // invalid to address
-        return Proto::SigningOutput();
-    }
-    auto editValidator = EditValidator(
+    return EditValidator(
         /* ValidatorAddress */ validatorAddr,
         /* Description */ description,
         /* CommissionRate */ commissionRate,
@@ -223,280 +256,401 @@ Proto::SigningOutput Signer::signEditValidator(const Proto::SigningInput &input)
              input.staking_message().edit_validator_message().slot_key_to_add_sig().end()),
         /* Active */
         load(input.staking_message().edit_validator_message().active()));
-
-    auto stakingTx = Staking<EditValidator>(
-        DirectiveEditValidator, editValidator, load(input.staking_message().nonce()),
-        load(input.staking_message().gas_price()), load(input.staking_message().gas_limit()),
-        load(input.chain_id()), 0, 0);
-
-    auto signer = Signer(uint256_t(load(input.chain_id())));
-    auto hash = signer.hash<EditValidator>(stakingTx);
-    signer.sign(key, hash, stakingTx);
-    auto encoded = signer.rlpNoHash<EditValidator>(stakingTx, true);
-
-    return prepareOutput<Staking<EditValidator>>(encoded, stakingTx);
 }
 
-Proto::SigningOutput Signer::signDelegate(const Proto::SigningInput &input) noexcept {
-    auto key = PrivateKey(Data(input.private_key().begin(), input.private_key().end()));
-
+Delegate Signer::buildUnsignedDelegate(const Proto::SigningInput &input) {
     Address delegatorAddr;
     if (!Address::decode(input.staking_message().delegate_message().delegator_address(),
                          delegatorAddr)) {
-        // invalid to address
-        return Proto::SigningOutput();
+        throw std::invalid_argument("Invalid address");
     }
     Address validatorAddr;
     if (!Address::decode(input.staking_message().delegate_message().validator_address(),
                          validatorAddr)) {
-        // invalid to address
-        return Proto::SigningOutput();
+        throw std::invalid_argument("Invalid address");
     }
-    auto delegate = Delegate(delegatorAddr, validatorAddr,
-                             load(input.staking_message().delegate_message().amount()));
-    auto stakingTx =
-        Staking<Delegate>(DirectiveDelegate, delegate, load(input.staking_message().nonce()),
-                          load(input.staking_message().gas_price()),
-                          load(input.staking_message().gas_limit()), load(input.chain_id()), 0, 0);
-
-    auto signer = Signer(uint256_t(load(input.chain_id())));
-    auto hash = signer.hash<Delegate>(stakingTx);
-    signer.sign(key, hash, stakingTx);
-    auto encoded = signer.rlpNoHash<Delegate>(stakingTx, true);
-
-    return prepareOutput<Staking<Delegate>>(encoded, stakingTx);
+    return Delegate(delegatorAddr, validatorAddr,
+                    load(input.staking_message().delegate_message().amount()));
 }
 
-Proto::SigningOutput Signer::signUndelegate(const Proto::SigningInput &input) noexcept {
-    auto key = PrivateKey(Data(input.private_key().begin(), input.private_key().end()));
-
+Undelegate Signer::buildUnsignedUndelegate(const Proto::SigningInput &input) {
     Address delegatorAddr;
     if (!Address::decode(input.staking_message().undelegate_message().delegator_address(),
                          delegatorAddr)) {
-        // invalid to address
-        return Proto::SigningOutput();
+        throw std::invalid_argument("Invalid address");
     }
     Address validatorAddr;
     if (!Address::decode(input.staking_message().undelegate_message().validator_address(),
                          validatorAddr)) {
-        // invalid to address
-        return Proto::SigningOutput();
+        throw std::invalid_argument("Invalid address");
     }
-    auto undelegate = Undelegate(delegatorAddr, validatorAddr,
-                                 load(input.staking_message().undelegate_message().amount()));
-    auto stakingTx = Staking<Undelegate>(
-        DirectiveUndelegate, undelegate, load(input.staking_message().nonce()),
-        load(input.staking_message().gas_price()), load(input.staking_message().gas_limit()),
-        load(input.chain_id()), 0, 0);
-
-    auto signer = Signer(uint256_t(load(input.chain_id())));
-    auto hash = signer.hash<Undelegate>(stakingTx);
-    signer.sign(key, hash, stakingTx);
-    auto encoded = signer.rlpNoHash<Undelegate>(stakingTx, true);
-
-    return prepareOutput<Staking<Undelegate>>(encoded, stakingTx);
+    return Undelegate(delegatorAddr, validatorAddr,
+                      load(input.staking_message().undelegate_message().amount()));
 }
 
-Proto::SigningOutput Signer::signCollectRewards(const Proto::SigningInput &input) noexcept {
-    auto key = PrivateKey(Data(input.private_key().begin(), input.private_key().end()));
-
+CollectRewards Signer::buildUnsignedCollectRewards(const Proto::SigningInput &input) {
     Address delegatorAddr;
     if (!Address::decode(input.staking_message().collect_rewards().delegator_address(),
                          delegatorAddr)) {
-        // invalid to address
-        return Proto::SigningOutput();
+        throw std::invalid_argument("Invalid address");
     }
-    auto collectRewards = CollectRewards(delegatorAddr);
-    auto stakingTx = Staking<CollectRewards>(
-        DirectiveCollectRewards, collectRewards, load(input.staking_message().nonce()),
-        load(input.staking_message().gas_price()), load(input.staking_message().gas_limit()),
-        load(input.chain_id()), 0, 0);
-
-    auto signer = Signer(uint256_t(load(input.chain_id())));
-    auto hash = signer.hash<CollectRewards>(stakingTx);
-    signer.sign(key, hash, stakingTx);
-    auto encoded = signer.rlpNoHash<CollectRewards>(stakingTx, true);
-
-    return prepareOutput<Staking<CollectRewards>>(encoded, stakingTx);
+    return CollectRewards(delegatorAddr);
 }
 
-template <typename T>
-void Signer::sign(const PrivateKey &privateKey, const Data& hash, T &transaction) const noexcept {
-    auto tuple = sign(chainID, privateKey, hash);
-    transaction.r = std::get<0>(tuple);
-    transaction.s = std::get<1>(tuple);
-    transaction.v = std::get<2>(tuple);
-}
+Data Signer::rlpNoHash(const Transaction& transaction, const bool include_vrs) const noexcept {
+    auto nonce = store(transaction.nonce);
+    auto gasPrice = store(transaction.gasPrice);
+    auto gasLimit = store(transaction.gasLimit);
+    auto fromShardID = store(transaction.fromShardID);
+    auto toShardID = store(transaction.toShardID);
+    auto toKeyHash = transaction.to.getKeyHash();
+    auto amount = store(transaction.amount);
 
-Data Signer::rlpNoHash(const Transaction &transaction, const bool include_vrs) const noexcept {
-    auto encoded = Data();
-    using namespace TW::Ethereum;
-    append(encoded, RLP::encode(transaction.nonce));
-    append(encoded, RLP::encode(transaction.gasPrice));
-    append(encoded, RLP::encode(transaction.gasLimit));
-    append(encoded, RLP::encode(transaction.fromShardID));
-    append(encoded, RLP::encode(transaction.toShardID));
-    append(encoded, RLP::encode(transaction.to.getKeyHash()));
-    append(encoded, RLP::encode(transaction.amount));
-    append(encoded, RLP::encode(transaction.payload));
+    Data v;
+    Data r;
+    Data s;
     if (include_vrs) {
-        append(encoded, RLP::encode(transaction.v));
-        append(encoded, RLP::encode(transaction.r));
-        append(encoded, RLP::encode(transaction.s));
+        v = store(transaction.v);
+        r = store(transaction.r);
+        s = store(transaction.s);
     } else {
-        append(encoded, RLP::encode(chainID));
-        append(encoded, RLP::encode(0));
-        append(encoded, RLP::encode(0));
+        v = store(chainID);
+        r = store(0);
+        s = store(0);
     }
-    return RLP::encodeList(encoded);
+
+    EthereumRlp::Proto::EncodingInput input;
+    auto* rlpList = input.mutable_item()->mutable_list();
+
+    rlpList->add_items()->set_number_u256(nonce.data(), nonce.size());
+    rlpList->add_items()->set_number_u256(gasPrice.data(), gasPrice.size());
+    rlpList->add_items()->set_number_u256(gasLimit.data(), gasLimit.size());
+    rlpList->add_items()->set_number_u256(fromShardID.data(), fromShardID.size());
+    rlpList->add_items()->set_number_u256(toShardID.data(), toShardID.size());
+    rlpList->add_items()->set_data(toKeyHash.data(), toKeyHash.size());
+    rlpList->add_items()->set_number_u256(amount.data(), amount.size());
+    rlpList->add_items()->set_data(transaction.payload.data(), transaction.payload.size());
+
+    rlpList->add_items()->set_number_u256(v.data(), v.size());
+    rlpList->add_items()->set_number_u256(r.data(), r.size());
+    rlpList->add_items()->set_number_u256(s.data(), s.size());
+
+    return RLP::encode(input);
 }
 
 template <typename Directive>
-Data Signer::rlpNoHash(const Staking<Directive> &transaction, const bool include_vrs) const
-    noexcept {
-    auto encoded = Data();
-    using namespace TW::Ethereum;
-    append(encoded, RLP::encode(transaction.directive));
-    append(encoded, rlpNoHashDirective(transaction));
-
-    append(encoded, RLP::encode(transaction.nonce));
-    append(encoded, RLP::encode(transaction.gasPrice));
-    append(encoded, RLP::encode(transaction.gasLimit));
+Data Signer::rlpNoHash(const Staking<Directive>& transaction, const bool include_vrs) const noexcept {
+    Data v;
+    Data r;
+    Data s;
     if (include_vrs) {
-        append(encoded, RLP::encode(transaction.v));
-        append(encoded, RLP::encode(transaction.r));
-        append(encoded, RLP::encode(transaction.s));
+        v = store(transaction.v);
+        r = store(transaction.r);
+        s = store(transaction.s);
     } else {
-        append(encoded, RLP::encode(chainID));
-        append(encoded, RLP::encode(0));
-        append(encoded, RLP::encode(0));
+        v = store(chainID);
+        r = store(0);
+        s = store(0);
     }
-    return RLP::encodeList(encoded);
+
+    auto nonce = store(transaction.nonce);
+    auto gasPrice = store(transaction.gasPrice);
+    auto gasLimit = store(transaction.gasLimit);
+
+    EthereumRlp::Proto::EncodingInput input;
+    auto* rlpList = input.mutable_item()->mutable_list();
+
+    rlpList->add_items()->set_number_u64(transaction.directive);
+    *rlpList->add_items() = rlpNoHashDirective(transaction);
+
+    rlpList->add_items()->set_number_u256(nonce.data(), nonce.size());
+    rlpList->add_items()->set_number_u256(gasPrice.data(), gasPrice.size());
+    rlpList->add_items()->set_number_u256(gasLimit.data(), gasLimit.size());
+
+    rlpList->add_items()->set_number_u256(v.data(), v.size());
+    rlpList->add_items()->set_number_u256(r.data(), r.size());
+    rlpList->add_items()->set_number_u256(s.data(), s.size());
+
+    return RLP::encode(input);
 }
 
-Data Signer::rlpNoHashDirective(const Staking<CreateValidator> &transaction) const noexcept {
-    auto encoded = Data();
-    using namespace TW::Ethereum;
+template <typename Directive>
+EthereumRlp::Proto::RlpItem Signer::rlpPrepareDescription(const Staking<Directive>& transaction) const noexcept {
+    EthereumRlp::Proto::RlpItem item;
+    auto* rlpList = item.mutable_list();
 
-    append(encoded, RLP::encode(transaction.stakeMsg.validatorAddress.getKeyHash()));
+    rlpList->add_items()->set_string_item(transaction.stakeMsg.description.name);
+    rlpList->add_items()->set_string_item(transaction.stakeMsg.description.identity);
+    rlpList->add_items()->set_string_item(transaction.stakeMsg.description.website);
+    rlpList->add_items()->set_string_item(transaction.stakeMsg.description.securityContact);
+    rlpList->add_items()->set_string_item(transaction.stakeMsg.description.details);
 
-    auto descriptionEncoded = Data();
-    append(descriptionEncoded, RLP::encode(transaction.stakeMsg.description.name));
-    append(descriptionEncoded, RLP::encode(transaction.stakeMsg.description.identity));
-    append(descriptionEncoded, RLP::encode(transaction.stakeMsg.description.website));
-    append(descriptionEncoded, RLP::encode(transaction.stakeMsg.description.securityContact));
-    append(descriptionEncoded, RLP::encode(transaction.stakeMsg.description.details));
-    append(encoded, RLP::encodeList(descriptionEncoded));
-
-    auto commissionEncoded = Data();
-
-    auto rateEncoded = Data();
-    append(rateEncoded, RLP::encode(transaction.stakeMsg.commissionRates.rate.value));
-    append(commissionEncoded, RLP::encodeList(rateEncoded));
-
-    auto maxRateEncoded = Data();
-    append(maxRateEncoded, RLP::encode(transaction.stakeMsg.commissionRates.maxRate.value));
-    append(commissionEncoded, RLP::encodeList(maxRateEncoded));
-
-    auto maxChangeRateEncoded = Data();
-    append(maxChangeRateEncoded,
-           RLP::encode(transaction.stakeMsg.commissionRates.maxChangeRate.value));
-    append(commissionEncoded, RLP::encodeList(maxChangeRateEncoded));
-
-    append(encoded, RLP::encodeList(commissionEncoded));
-
-    append(encoded, RLP::encode(transaction.stakeMsg.minSelfDelegation));
-    append(encoded, RLP::encode(transaction.stakeMsg.maxTotalDelegation));
-
-    auto slotPubKeysEncoded = Data();
-    for (auto pk : transaction.stakeMsg.slotPubKeys) {
-        append(slotPubKeysEncoded, RLP::encode(pk));
-    }
-    append(encoded, RLP::encodeList(slotPubKeysEncoded));
-
-    auto slotBlsSigsEncoded = Data();
-    for (auto sig : transaction.stakeMsg.slotKeySigs) {
-        append(slotBlsSigsEncoded, RLP::encode(sig));
-    }
-    append(encoded, RLP::encodeList(slotBlsSigsEncoded));
-
-    append(encoded, RLP::encode(transaction.stakeMsg.amount));
-
-    return RLP::encodeList(encoded);
+    return item;
 }
 
-Data Signer::rlpNoHashDirective(const Staking<EditValidator> &transaction) const noexcept {
-    auto encoded = Data();
-    using namespace TW::Ethereum;
+EthereumRlp::Proto::RlpItem Signer::rlpPrepareCommissionRates(const Staking<CreateValidator> &transaction) noexcept {
+    auto rateValue = store(transaction.stakeMsg.commissionRates.rate.value);
+    auto maxRateValue = store(transaction.stakeMsg.commissionRates.maxRate.value);
+    auto maxChangeRateValue = store(transaction.stakeMsg.commissionRates.maxChangeRate.value);
 
-    append(encoded, RLP::encode(transaction.stakeMsg.validatorAddress.getKeyHash()));
+    EthereumRlp::Proto::RlpItem item;
+    auto* commissionList = item.mutable_list();
 
-    auto descriptionEncoded = Data();
-    append(descriptionEncoded, RLP::encode(transaction.stakeMsg.description.name));
-    append(descriptionEncoded, RLP::encode(transaction.stakeMsg.description.identity));
-    append(descriptionEncoded, RLP::encode(transaction.stakeMsg.description.website));
-    append(descriptionEncoded, RLP::encode(transaction.stakeMsg.description.securityContact));
-    append(descriptionEncoded, RLP::encode(transaction.stakeMsg.description.details));
-    append(encoded, RLP::encodeList(descriptionEncoded));
+    // Append `commission::rate` properties list with a single item.
+    auto* rateList = commissionList->add_items()->mutable_list();
+    rateList->add_items()->set_number_u256(rateValue.data(), rateValue.size());
 
-    auto decEncoded = Data();
+    // Append `commission::maxRate` properties list.
+    auto* maxRateList = commissionList->add_items()->mutable_list();
+    maxRateList->add_items()->set_number_u256(maxRateValue.data(), maxRateValue.size());
+
+    // Append `commission::maxChangeRate` properties list.
+    auto* maxChangeRateList = commissionList->add_items()->mutable_list();
+    maxChangeRateList->add_items()->set_number_u256(maxChangeRateValue.data(), maxChangeRateValue.size());
+
+    return item;
+}
+
+EthereumRlp::Proto::RlpItem Signer::rlpNoHashDirective(const Staking<CreateValidator>& transaction) const noexcept {
+    auto validatorKeyHash = transaction.stakeMsg.validatorAddress.getKeyHash();
+    auto minSelfDelegation = store(transaction.stakeMsg.minSelfDelegation);
+    auto maxTotalDelegation = store(transaction.stakeMsg.maxTotalDelegation);
+    auto amount = store(transaction.stakeMsg.amount);
+
+    EthereumRlp::Proto::RlpItem item;
+    auto* rlpList = item.mutable_list();
+
+    rlpList->add_items()->set_data(validatorKeyHash.data(), validatorKeyHash.size());
+    *rlpList->add_items() = rlpPrepareDescription(transaction);
+
+    // Append `commission` properties list of `rate`, `maxRate`, `maxChangeRate` sublists.
+    *rlpList->add_items() = rlpPrepareCommissionRates(transaction);
+
+    rlpList->add_items()->set_number_u256(minSelfDelegation.data(), minSelfDelegation.size());
+    rlpList->add_items()->set_number_u256(maxTotalDelegation.data(), maxTotalDelegation.size());
+
+    // Append a list of slot public keys.
+    auto* slotPubkeysList = rlpList->add_items()->mutable_list();
+    for (const auto& pk : transaction.stakeMsg.slotPubKeys) {
+        slotPubkeysList->add_items()->set_data(pk.data(), pk.size());
+    }
+
+    // Append a list of slot key signatures.
+    auto* slotKeySigsList = rlpList->add_items()->mutable_list();
+    for (const auto& sign : transaction.stakeMsg.slotKeySigs) {
+        slotKeySigsList->add_items()->set_data(sign.data(), sign.size());
+    }
+
+    rlpList->add_items()->set_number_u256(amount.data(), amount.size());
+
+    return item;
+}
+
+EthereumRlp::Proto::RlpItem Signer::rlpNoHashDirective(const Staking<EditValidator>& transaction) const noexcept {
+    auto validatorKeyHash = transaction.stakeMsg.validatorAddress.getKeyHash();
+    auto minSelfDelegation = store(transaction.stakeMsg.minSelfDelegation);
+    auto maxTotalDelegation = store(transaction.stakeMsg.maxTotalDelegation);
+    auto active = store(transaction.stakeMsg.active);
+
+    EthereumRlp::Proto::RlpItem item;
+    auto* rlpList = item.mutable_list();
+
+    rlpList->add_items()->set_data(validatorKeyHash.data(), validatorKeyHash.size());
+    *rlpList->add_items() = rlpPrepareDescription(transaction);
+
+    auto* commissionRateList = rlpList->add_items()->mutable_list();
     if (transaction.stakeMsg.commissionRate.has_value()) {
         // Note: std::optional.value() is not available in XCode with target < iOS 12; using '*'
-        append(decEncoded, RLP::encode((*transaction.stakeMsg.commissionRate).value));
+        auto commissionRateValue = store((*transaction.stakeMsg.commissionRate).value);
+        commissionRateList->add_items()->set_number_u256(commissionRateValue.data(), commissionRateValue.size());
     }
-    append(encoded, RLP::encodeList(decEncoded));
 
-    append(encoded, RLP::encode(transaction.stakeMsg.minSelfDelegation));
-    append(encoded, RLP::encode(transaction.stakeMsg.maxTotalDelegation));
+    rlpList->add_items()->set_number_u256(minSelfDelegation.data(), minSelfDelegation.size());
+    rlpList->add_items()->set_number_u256(maxTotalDelegation.data(), maxTotalDelegation.size());
 
-    append(encoded, RLP::encode(transaction.stakeMsg.slotKeyToRemove));
-    append(encoded, RLP::encode(transaction.stakeMsg.slotKeyToAdd));
-    append(encoded, RLP::encode(transaction.stakeMsg.slotKeyToAddSig));
+    rlpList->add_items()->set_data(transaction.stakeMsg.slotKeyToRemove.data(), transaction.stakeMsg.slotKeyToRemove.size());
+    rlpList->add_items()->set_data(transaction.stakeMsg.slotKeyToAdd.data(), transaction.stakeMsg.slotKeyToAdd.size());
+    rlpList->add_items()->set_data(transaction.stakeMsg.slotKeyToAddSig.data(), transaction.stakeMsg.slotKeyToAddSig.size());
 
-    append(encoded, RLP::encode(transaction.stakeMsg.active));
+    rlpList->add_items()->set_number_u256(active.data(), active.size());
 
-    return RLP::encodeList(encoded);
+    return item;
 }
 
-Data Signer::rlpNoHashDirective(const Staking<Delegate> &transaction) const noexcept {
-    auto encoded = Data();
-    using namespace TW::Ethereum;
-    append(encoded, RLP::encode(transaction.stakeMsg.delegatorAddress.getKeyHash()));
-    append(encoded, RLP::encode(transaction.stakeMsg.validatorAddress.getKeyHash()));
-    append(encoded, RLP::encode(transaction.stakeMsg.amount));
-    return RLP::encodeList(encoded);
+EthereumRlp::Proto::RlpItem Signer::rlpNoHashDirective(const Staking<Delegate>& transaction) const noexcept {
+    auto delegatorKeyHash = transaction.stakeMsg.delegatorAddress.getKeyHash();
+    auto validatorKeyHash = transaction.stakeMsg.validatorAddress.getKeyHash();
+    auto amount = store(transaction.stakeMsg.amount);
+
+    EthereumRlp::Proto::RlpItem item;
+    auto* rlpList = item.mutable_list();
+
+    rlpList->add_items()->set_data(delegatorKeyHash.data(), delegatorKeyHash.size());
+    rlpList->add_items()->set_data(validatorKeyHash.data(), validatorKeyHash.size());
+    rlpList->add_items()->set_number_u256(amount.data(), amount.size());
+
+    return item;
 }
 
-Data Signer::rlpNoHashDirective(const Staking<Undelegate> &transaction) const noexcept {
-    auto encoded = Data();
-    using namespace TW::Ethereum;
-    append(encoded, RLP::encode(transaction.stakeMsg.delegatorAddress.getKeyHash()));
-    append(encoded, RLP::encode(transaction.stakeMsg.validatorAddress.getKeyHash()));
-    append(encoded, RLP::encode(transaction.stakeMsg.amount));
-    return RLP::encodeList(encoded);
+EthereumRlp::Proto::RlpItem Signer::rlpNoHashDirective(const Staking<Undelegate>& transaction) const noexcept {
+    auto delegatorKeyHash = transaction.stakeMsg.delegatorAddress.getKeyHash();
+    auto validatorKeyHash = transaction.stakeMsg.validatorAddress.getKeyHash();
+    auto amount = store(transaction.stakeMsg.amount);
+
+    EthereumRlp::Proto::RlpItem item;
+    auto* rlpList = item.mutable_list();
+
+    rlpList->add_items()->set_data(delegatorKeyHash.data(), delegatorKeyHash.size());
+    rlpList->add_items()->set_data(validatorKeyHash.data(), validatorKeyHash.size());
+    rlpList->add_items()->set_number_u256(amount.data(), amount.size());
+
+    return item;
 }
 
-Data Signer::rlpNoHashDirective(const Staking<CollectRewards> &transaction) const noexcept {
-    auto encoded = Data();
-    using namespace TW::Ethereum;
-    append(encoded, RLP::encode(transaction.stakeMsg.delegatorAddress.getKeyHash()));
-    return RLP::encodeList(encoded);
+EthereumRlp::Proto::RlpItem Signer::rlpNoHashDirective(const Staking<CollectRewards>& transaction) const noexcept {
+    auto delegatorKeyHash = transaction.stakeMsg.delegatorAddress.getKeyHash();
+
+    EthereumRlp::Proto::RlpItem item;
+    auto* rlpList = item.mutable_list();
+
+    rlpList->add_items()->set_data(delegatorKeyHash.data(), delegatorKeyHash.size());
+
+    return item;
 }
 
-std::string Signer::txnAsRLPHex(Transaction &transaction) const noexcept {
+std::string Signer::txnAsRLPHex(Transaction& transaction) const noexcept {
     return TW::hex(rlpNoHash(transaction, false));
 }
 
 template <typename Directive>
-std::string Signer::txnAsRLPHex(Staking<Directive> &transaction) const noexcept {
+std::string Signer::txnAsRLPHex(Staking<Directive>& transaction) const noexcept {
     return TW::hex(rlpNoHash<Directive>(transaction, false));
 }
 
-Data Signer::hash(const Transaction &transaction) const noexcept {
+Data Signer::hash(const Transaction& transaction) const noexcept {
     return Hash::keccak256(rlpNoHash(transaction, false));
 }
 
 template <typename Directive>
-Data Signer::hash(const Staking<Directive> &transaction) const noexcept {
+Data Signer::hash(const Staking<Directive>& transaction) const noexcept {
     return Hash::keccak256(rlpNoHash<Directive>(transaction, false));
 }
+
+Data Signer::buildUnsignedTxBytes(const Proto::SigningInput &input) {
+    if (input.has_transaction_message()) {
+        Transaction transaction = Signer::buildUnsignedTransaction(input);
+        return rlpNoHash(transaction, false);
+    }
+
+    if (input.has_staking_message()) {
+        auto stakingMessage = input.staking_message();
+
+        if (stakingMessage.has_create_validator_message()) {
+            auto tx = Signer::buildUnsignedStakingTransaction<CreateValidator>(input, &Signer::buildUnsignedCreateValidator);
+            return rlpNoHash<CreateValidator>(tx, false);
+        }
+        if (stakingMessage.has_edit_validator_message()) {
+            auto tx = Signer::buildUnsignedStakingTransaction<EditValidator>(input, &Signer::buildUnsignedEditValidator);
+            return rlpNoHash<EditValidator>(tx, false);
+        }
+        if (stakingMessage.has_delegate_message()) {
+            auto tx = Signer::buildUnsignedStakingTransaction<Delegate>(input, &Signer::buildUnsignedDelegate);
+            return rlpNoHash<Delegate>(tx, false);
+        }
+        if (stakingMessage.has_undelegate_message()) {
+            auto tx = Signer::buildUnsignedStakingTransaction<Undelegate>(input, &Signer::buildUnsignedUndelegate);
+            return rlpNoHash<Undelegate>(tx, false);
+        }
+        if (stakingMessage.has_collect_rewards()) {
+            auto tx = Signer::buildUnsignedStakingTransaction<CollectRewards>(input, &Signer::buildUnsignedCollectRewards);
+            return rlpNoHash<CollectRewards>(tx, false);
+        }
+    }
+
+    throw std::invalid_argument("Invalid message");
+}
+
+Proto::SigningOutput Signer::buildSigningOutput(const Proto::SigningInput &input, const Data &signature) {
+    if (input.has_transaction_message()) {
+        Transaction transaction = Signer::buildUnsignedTransaction(input);
+
+        auto tuple = values(chainID, signature);
+        transaction.r = std::get<0>(tuple);
+        transaction.s = std::get<1>(tuple);
+        transaction.v = std::get<2>(tuple);
+
+        auto encoded = rlpNoHash(transaction, true);
+        return prepareOutput<Transaction>(encoded, transaction);
+    }
+
+    if (input.has_staking_message()) {
+        auto stakingMessage = input.staking_message();
+
+        if (stakingMessage.has_create_validator_message()) {
+            return buildStakingSigningOutput<CreateValidator>(input, signature, &Signer::buildUnsignedCreateValidator);
+        }
+        if (stakingMessage.has_edit_validator_message()) {
+            return buildStakingSigningOutput<EditValidator>(input, signature, &Signer::buildUnsignedEditValidator);
+
+        }
+        if (stakingMessage.has_delegate_message()) {
+            return buildStakingSigningOutput<Delegate>(input, signature, &Signer::buildUnsignedDelegate);
+
+        }
+        if (stakingMessage.has_undelegate_message()) {
+            return buildStakingSigningOutput<Undelegate>(input, signature, &Signer::buildUnsignedUndelegate);
+        }
+        if (stakingMessage.has_collect_rewards()) {
+            return buildStakingSigningOutput<CollectRewards>(input, signature, &Signer::buildUnsignedCollectRewards);
+        }
+    }
+
+    throw std::invalid_argument("Invalid message");
+}
+
+Transaction Signer::buildUnsignedTransaction(const Proto::SigningInput &input) {
+    if (input.message_oneof_case() != Proto::SigningInput::kTransactionMessage) {
+        throw std::invalid_argument("Invalid message");
+    }
+
+    auto transactionMessage = input.transaction_message();
+
+    Transaction transaction;
+
+    Address toAddr;
+    if (!Address::decode(transactionMessage.to_address(), transaction.to)) {
+        throw std::invalid_argument("Invalid address");
+    }
+
+    transaction.nonce = load(transactionMessage.nonce());
+    transaction.gasPrice = load(transactionMessage.gas_price());
+    transaction.gasLimit = load(transactionMessage.gas_limit());
+    transaction.amount = load(transactionMessage.amount());
+    transaction.fromShardID = load(transactionMessage.from_shard_id());
+    transaction.toShardID = load(transactionMessage.to_shard_id());
+    transaction.payload = Data(transactionMessage.payload().begin(), transactionMessage.payload().end());
+    return transaction;
+}
+
+template <typename T>
+Staking<T> Signer::buildUnsignedStakingTransaction(const Proto::SigningInput &input, function<T(const Proto::SigningInput &input)> func) {
+    auto tx = func(input);
+    return Staking<T>(
+        getEnum<T>(), tx, load(input.staking_message().nonce()),
+        load(input.staking_message().gas_price()), load(input.staking_message().gas_limit()),
+        load(input.chain_id()), 0, 0);
+}
+
+template <typename T>
+Proto::SigningOutput Signer::buildStakingSigningOutput(const Proto::SigningInput &input, const Data &signature, function<T(const Proto::SigningInput &input)> func) {
+    auto tx = Signer::buildUnsignedStakingTransaction<T>(input, func);
+    auto tuple = values(chainID, signature);
+
+    tx.r = std::get<0>(tuple);
+    tx.s = std::get<1>(tuple);
+    tx.v = std::get<2>(tuple);
+    auto encoded =  rlpNoHash<T>(tx, true);
+    return prepareOutput<Staking<T>>(encoded, tx);
+}
+
+} // namespace TW::Harmony

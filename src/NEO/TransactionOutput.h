@@ -1,13 +1,12 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #pragma once
 
 #include "../uint256.h"
-#include "../Data.h"
+#include "Constants.h"
+#include "Data.h"
 #include "../BinaryCoding.h"
 #include "ReadData.h"
 #include "ISerializable.h"
@@ -15,32 +14,32 @@
 
 namespace TW::NEO {
 
-class TransactionOutput : public Serializable {
+class TransactionOutput final: public Serializable {
   public:
-    static const size_t assetIdSize = 32;
-    static const size_t valueSize = 8;
-    static const size_t scriptHashSize = 20;
-
     uint256_t assetId;
-    int64_t value = 0;
+    uint64_t value = 0;
     uint256_t scriptHash;
 
-    virtual ~TransactionOutput() {}
+    ~TransactionOutput() override = default;
 
-    int64_t size() const override {
-        return store(assetId).size() + valueSize + store(scriptHash).size();
+    size_t size() const override {
+        return assetIdSize + valueSize + scriptHashSize;
     }
 
-    void deserialize(const Data& data, int initial_pos = 0) override {
+    void deserialize(const Data& data, size_t initial_pos = 0) override {
+        if (data.size() < initial_pos + size()) {
+            throw std::invalid_argument("Data::Cannot read enough bytes!");
+        }
+
         assetId = load(readBytes(data, assetIdSize, initial_pos));
         value = decode64LE(data.data() + initial_pos + assetIdSize);
         scriptHash = load(readBytes(data, scriptHashSize, initial_pos + assetIdSize + valueSize));
     }
 
     Data serialize() const override {
-        auto resp = store(assetId);
+        auto resp = store(assetId, assetIdSize);
         encode64LE(value, resp);
-        return concat(resp, store(scriptHash));
+        return concat(resp, store(scriptHash, scriptHashSize));
     }
 
     bool operator==(const TransactionOutput &other) const {
@@ -50,4 +49,4 @@ class TransactionOutput : public Serializable {
     }
 };
 
-}
+} // namespace TW::NEO

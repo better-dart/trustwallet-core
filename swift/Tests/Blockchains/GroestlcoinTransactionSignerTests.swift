@@ -1,8 +1,6 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 import XCTest
 import WalletCore
@@ -14,6 +12,7 @@ class GroestlcoinTransactionSignerTests: XCTestCase {
 
     func testSignP2WPKH() throws {
         var input = BitcoinSigningInput.with {
+            $0.coinType = CoinType.groestlcoin.rawValue
             $0.hashType = BitcoinScript.hashTypeForCoin(coinType: .groestlcoin)
             $0.amount = 2500
             $0.byteFee = 1
@@ -67,6 +66,7 @@ class GroestlcoinTransactionSignerTests: XCTestCase {
 
     func testSignP2PKH() throws {
         var input = BitcoinSigningInput.with {
+            $0.coinType = CoinType.groestlcoin.rawValue
             $0.hashType = BitcoinScript.hashTypeForCoin(coinType: .groestlcoin)
             $0.amount = 2500
             $0.byteFee = 1
@@ -118,6 +118,7 @@ class GroestlcoinTransactionSignerTests: XCTestCase {
 
     func testSignP2SH_P2WPKH() throws {
         var input = BitcoinSigningInput.with {
+            $0.coinType = CoinType.groestlcoin.rawValue
             $0.hashType = BitcoinScript.hashTypeForCoin(coinType: .groestlcoin)
             $0.amount = 5000
             $0.byteFee = 1

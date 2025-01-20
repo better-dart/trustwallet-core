@@ -1,8 +1,6 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #pragma once
 
@@ -10,8 +8,8 @@
 #include <vector>
 
 #include "Coins.h"
-#include "../Data.h"
-#include "../Ethereum/Address.h"
+#include "Data.h"
+#include "Ethereum/Address.h"
 
 namespace TW::Theta {
 
@@ -39,20 +37,23 @@ class TxOutput {
 
 class Transaction {
   public:
-    Coins fee;
+    Coins _fee;
     std::vector<TxInput> inputs;
     std::vector<TxOutput> outputs;
 
     Transaction() = default;
     Transaction(Coins fee, std::vector<TxInput> inputs, std::vector<TxOutput> outputs)
-        : fee(std::move(fee)), inputs(std::move(inputs)), outputs(std::move(outputs)) {}
+        : _fee(std::move(fee)), inputs(std::move(inputs)), outputs(std::move(outputs)) {}
 
     Transaction(Ethereum::Address from, Ethereum::Address to,
-                uint256_t thetaAmount, uint256_t tfuelAmount, uint64_t sequence,
-                uint256_t feeAmount = 1000000000000);
+                const uint256_t& thetaAmount, const uint256_t& tfuelAmount, uint64_t sequence,
+                const uint256_t& feeAmount = 1000000000000);
 
-    /// Encodes the transaction
-    Data encode() const noexcept;
+    /// Encodes the essential part of the transaction without a Chain ID.
+    Data encodePayload() const noexcept;
+
+    /// Encodes the transaction with the given `chainId`.
+    Data encode(const std::string& chainId) const noexcept;
 
     /// Sets signature
     bool setSignature(const Ethereum::Address& address, const Data& signature) noexcept;

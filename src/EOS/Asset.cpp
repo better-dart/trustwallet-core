@@ -1,16 +1,13 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #include "Asset.h"
+#include "algorithm/string.hpp"
 
-#include <boost/algorithm/string/trim.hpp>
-#include <boost/lexical_cast.hpp>
 #include <stdexcept>
 
-using namespace TW::EOS;
+namespace TW::EOS {
 
 static const int64_t Precision = 1000;
 static const uint8_t MaxDecimals = 18;
@@ -21,12 +18,12 @@ Asset::Asset(int64_t amount, uint8_t decimals, const std::string& symbol) {
     }
     this->symbol |= decimals;
 
-    if (symbol.size() < 1 || symbol.size() > 7) {
+    if (symbol.empty() || symbol.size() > 7) {
         throw std::invalid_argument("Symbol size invalid!");
     }
 
-    for (int i = 0; i < symbol.size(); i++) {
-        uint64_t c = symbol[i];
+    for (std::size_t i = 0; i < symbol.size(); i++) {
+        uint64_t c = (unsigned char) symbol[i];
         if (c < 'A' || c > 'Z') {
             throw std::invalid_argument("Invalid symbol " + symbol + ".\n Symbol can only have upper case alphabets!");
         }
@@ -40,7 +37,7 @@ Asset::Asset(int64_t amount, uint8_t decimals, const std::string& symbol) {
 Asset Asset::fromString(std::string assetString) {
     using namespace std;
 
-    boost::algorithm::trim(assetString);
+    trim(assetString);
 
     // Find space in order to split amount and symbol
     auto spacePosition = assetString.find(' ');
@@ -48,7 +45,7 @@ Asset Asset::fromString(std::string assetString) {
         throw std::invalid_argument("Asset's amount and symbol should be separated with space");
     }
 
-    auto symbolString = boost::algorithm::trim_copy(assetString.substr(spacePosition + 1));
+    auto symbolString = trim_copy(assetString.substr(spacePosition + 1));
     auto amountString = assetString.substr(0, spacePosition);
 
     // Ensure that if decimal point is used (.), decimal fraction is specified
@@ -61,19 +58,19 @@ Asset Asset::fromString(std::string assetString) {
     if (dotPosition != string::npos) {
         decimals = static_cast<uint8_t>(amountString.size() - dotPosition - 1);
     }
-                           
-    int64_t precision = static_cast<uint64_t>(pow(10, static_cast<double>(decimals)));
+
+    auto precision = static_cast<int64_t>(pow(10, static_cast<double>(decimals)));
 
     // Parse amount
     int64_t intPart, fractPart = 0;
     if (dotPosition != string::npos) {
-        intPart = boost::lexical_cast<int64_t>(amountString.data(), dotPosition);
-        fractPart = boost::lexical_cast<int64_t>(amountString.data() + dotPosition + 1, decimals);
+        intPart = std::stoll(amountString.substr(0, dotPosition));
+        fractPart = std::stoll(amountString.substr(dotPosition + 1, decimals));
         if (amountString[0] == '-') {
             fractPart *= -1;
         }
     } else {
-        intPart = boost::lexical_cast<int64_t>(amountString);
+        intPart = std::stoll(amountString);
     }
 
     int64_t amount = intPart;
@@ -110,10 +107,10 @@ std::string Asset::string() const {
 
     auto decimals = getDecimals();
 
-    int charsWritten = snprintf(buffer, maxBufferSize, "%.*f %s", 
-                            decimals, 
-                            static_cast<double>(amount) / Precision,
-                            getSymbol().c_str());
+    int charsWritten = snprintf(buffer, maxBufferSize, "%.*f %s",
+                                decimals,
+                                static_cast<double>(amount) / Precision,
+                                getSymbol().c_str());
 
     if (charsWritten < 0 || charsWritten > maxBufferSize) {
         throw std::runtime_error("Failed to create string representation of asset!");
@@ -133,3 +130,5 @@ std::string Asset::getSymbol() const noexcept {
 
     return str;
 }
+
+} // namespace TW::EOS

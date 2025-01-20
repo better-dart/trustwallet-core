@@ -1,8 +1,6 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #include "Staking.h"
 #include "Data.h"
@@ -84,7 +82,7 @@ Data stakingTransfer(uint64_t index, const Data& voterAddress, const Data& paylo
 Data candidateRegister(const Data& name, const Data& operatorAddress, const Data& rewardAddress,
                        const Data& amount, uint32_t duration, bool autoStake,
                        const Data& ownerAddress, const Data& payload) {
-    auto cbi = new IoTeX::Proto::Staking_CandidateBasicInfo();
+    auto* cbi = new IoTeX::Proto::Staking_CandidateBasicInfo();
     cbi->set_name(FromData(name).c_str());
     cbi->set_operatoraddress(FromData(operatorAddress).c_str());
     cbi->set_rewardaddress(FromData(rewardAddress).c_str());

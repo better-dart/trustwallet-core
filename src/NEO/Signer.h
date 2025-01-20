@@ -1,26 +1,24 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #pragma once
 
 #include "Address.h"
 #include "Transaction.h"
-#include "../Data.h"
+#include "Data.h"
 #include "../PrivateKey.h"
 #include "../proto/NEO.pb.h"
 
 namespace TW::NEO {
 
 class Signer {
-  private:
+private:
     Data publicKey;
     TW::PrivateKey privateKey;
     Address address;
 
-  public:
+public:
     explicit Signer(const TW::PrivateKey& priKey);
     PrivateKey getPrivateKey() const;
     PublicKey getPublicKey() const;
@@ -31,10 +29,15 @@ class Signer {
     void sign(Transaction& tx) const;
     Data sign(const Data& data) const;
 
-  private:
-    static Transaction prepareUnsignedTransaction(const Proto::SigningInput& input,
-                                                  const Proto::TransactionPlan& plan,
-                                                  bool validate = true);
+    static Data signaturePreimage(const Proto::SigningInput& input);
+    static Data encodeTransaction(const Proto::SigningInput& input,
+                                  const std::vector<PublicKey>& publicKeys,
+                                  const std::vector<Data>& signatures);
+
+private:
+    static std::shared_ptr<Transaction>
+    prepareUnsignedTransaction(const Proto::SigningInput& input, const Proto::TransactionPlan& plan,
+                               bool validate = true);
 };
 
 } // namespace TW::NEO

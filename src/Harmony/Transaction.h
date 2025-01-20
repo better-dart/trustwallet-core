@@ -1,8 +1,6 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #pragma once
 
@@ -30,6 +28,8 @@ class Transaction {
     uint256_t v = uint256_t();
     uint256_t r = uint256_t();
     uint256_t s = uint256_t();
+
+    Transaction() = default;
 
     Transaction(uint256_t nonce, uint256_t gasPrice, uint256_t gasLimit, uint256_t fromShardID,
                 uint256_t toShardID, Address to, uint256_t amount, const Data& payload)

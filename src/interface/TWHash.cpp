@@ -1,15 +1,12 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #include <TrustWalletCore/TWHash.h>
 #include "../Hash.h"
-#include "../Data.h"
+#include "Data.h"
 
 #include "BinaryCoding.h"
-#include "XXHash64.h"
 #include <TrezorCrypto/blake2b.h>
 #include <TrezorCrypto/ripemd160.h>
 #include <TrezorCrypto/sha2.h>
@@ -79,19 +76,19 @@ TWData* _Nonnull TWHashGroestl512(TWData* _Nonnull data) {
     return TWDataCreateWithBytes(result.data(), result.size());
 }
 
-TWData* _Nonnull TWHashXXHash64(TWData* _Nonnull data, uint64_t seed) {
-    const auto result = Hash::xxhash64(reinterpret_cast<const byte*>(TWDataBytes(data)), TWDataSize(data), seed);
-    return TWDataCreateWithBytes(result.data(), result.size());
-}
-
-TWData* _Nonnull TWHashTwoXXHash64Concat(TWData* _Nonnull data) {
-    const auto result = Hash::xxhash64concat(reinterpret_cast<const byte*>(TWDataBytes(data)), TWDataSize(data));
-    return TWDataCreateWithBytes(result.data(), result.size());
-}
-
 TWData* _Nonnull TWHashSHA256SHA256(TWData* _Nonnull data) {
     const auto result = Hash::sha256d(reinterpret_cast<const byte*>(TWDataBytes(data)), TWDataSize(data));
     return TWDataCreateWithBytes(result.data(), result.size());
+}
+
+TWData *_Nonnull TWHashBlake2bPersonal(TWData *_Nonnull data, TWData * _Nonnull personal, size_t outlen) {
+    auto resultBytes = TW::Data(outlen);
+    auto dataBytes = TWDataBytes(data);
+    auto personalBytes = TWDataBytes(personal);
+    auto personalSize = TWDataSize(personal);
+    tc_blake2b_Personal(dataBytes, static_cast<uint32_t>(TWDataSize(data)), personalBytes, personalSize, resultBytes.data(), outlen);
+    auto result = TWDataCreateWithBytes(resultBytes.data(), outlen);
+    return result;
 }
 
 TWData* _Nonnull TWHashSHA256RIPEMD(TWData* _Nonnull data) {

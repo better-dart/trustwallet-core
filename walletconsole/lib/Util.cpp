@@ -1,8 +1,6 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #include "Util.h"
 
@@ -38,17 +36,16 @@ bool Util::base64Encode(const string& p, string& res) {
 }
 
 bool Util::base64Decode(const string& p, string& res) {
-    try {
-        auto dec = Base64::decode(p);
-        res = TW::hex(dec);
-        return true;
-    } catch (exception& ex) {
+    auto dec = Base64::decode(p);
+    if (dec.empty()) {
         _out << "Error while Base64 decode" << endl;
         return false;
     }
+    res = TW::hex(dec);
+    return true;
 }
 
-bool Util::fileW(const string& fileName, const string& data, string& res) {
+bool Util::fileW(const string& fileName, const string& data, [[maybe_unused]] string& res) {
     if (fileExists(fileName)) {
         _out << "Warning: File '" << fileName << "' already exists, not overwriting to be safe." << endl;
         return false;

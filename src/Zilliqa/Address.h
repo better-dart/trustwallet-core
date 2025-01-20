@@ -1,8 +1,6 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #pragma once
 
@@ -26,7 +24,7 @@ public:
     Address(const Data& keyHash) : Bech32Address(hrp, keyHash) {}
 
     /// Initializes an address with a public key.
-    Address(const PublicKey& publicKey) : Bech32Address(hrp, HASHER_SHA2, publicKey) {}
+    Address(const PublicKey& publicKey) : Bech32Address(hrp, Hash::HasherSha256, publicKey) {}
 
     std::string checksumed() const {
         return checksum(getKeyHash());

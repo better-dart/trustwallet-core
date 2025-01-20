@@ -1,8 +1,6 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 package com.trustwallet.core.app.blockchains.polkadot
 
@@ -36,7 +34,7 @@ class TestKusamaSigner {
             blockHash = hash
             nonce = 1
             specVersion = 2019
-            network = Polkadot.Network.KUSAMA
+            network = KUSAMA.ss58Prefix()
             transactionVersion = 2
             privateKey = key
             balanceCall = Polkadot.Balance.newBuilder().apply {

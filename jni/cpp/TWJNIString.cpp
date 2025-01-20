@@ -1,8 +1,6 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #include <assert.h>
 #include <string.h>
@@ -15,8 +13,8 @@ jstring _Nonnull TWStringJString(TWString *_Nonnull string, JNIEnv *env) {
 }
 
 TWString *_Nonnull TWStringCreateWithJString(JNIEnv *env, jstring _Nonnull string) {
-    auto chars = env->GetStringUTFChars(string, nullptr);
-    auto twstring = TWStringCreateWithUTF8Bytes(chars);
+    const auto *chars = env->GetStringUTFChars(string, nullptr);
+    const auto *twstring = TWStringCreateWithUTF8Bytes(chars);
     env->ReleaseStringUTFChars(string, chars);
     return twstring;
 }

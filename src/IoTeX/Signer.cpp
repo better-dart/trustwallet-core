@@ -1,17 +1,14 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #include "Signer.h"
 #include "Hash.h"
-#include "HexCoding.h"
-#include "IoTeX/Staking.h"
 #include "PrivateKey.h"
 
 using namespace TW;
-using namespace TW::IoTeX;
+
+namespace TW::IoTeX {
 
 Proto::SigningOutput Signer::sign(const Proto::SigningInput& input) noexcept {
     auto signer = Signer(input);
@@ -40,11 +37,34 @@ Proto::SigningOutput Signer::build() const {
     return output;
 }
 
+Proto::SigningOutput Signer::compile(const Proto::SigningInput& input, const Data& signature,
+                                     const TW::PublicKey& pubKey) noexcept {
+    auto signer = Signer(input);
+    auto signedAction = Proto::Action();
+    signedAction.mutable_core()->MergeFrom(signer.action);
+
+    signedAction.set_senderpubkey(pubKey.bytes.data(), pubKey.bytes.size());
+    signedAction.set_signature(signature.data(), signature.size());
+    // build output
+    auto output = Proto::SigningOutput();
+    auto serialized = signedAction.SerializeAsString();
+    output.set_encoded(serialized);
+    auto h = Hash::keccak256(serialized);
+    output.set_hash(h.data(), h.size());
+    return output;
+}
+
 Data Signer::hash() const {
     return Hash::keccak256(action.SerializeAsString());
+}
+
+std::string Signer::signaturePreimage() const {
+    return action.SerializeAsString();
 }
 
 void Signer::toActionCore() {
     action.ParseFromString(input.SerializeAsString());
     action.DiscardUnknownFields();
 }
+
+} // namespace TW::IoTeX

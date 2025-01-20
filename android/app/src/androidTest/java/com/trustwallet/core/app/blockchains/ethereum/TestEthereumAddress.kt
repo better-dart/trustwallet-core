@@ -1,10 +1,13 @@
 package com.trustwallet.core.app.blockchains.ethereum
 
+import com.trustwallet.core.app.utils.Numeric
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import wallet.core.jni.AnyAddress
 import wallet.core.jni.CoinType
 import org.junit.Assert.assertFalse
+import wallet.core.jni.Ethereum
+import wallet.core.jni.Hash
 
 class TestEthereumAddress {
 

@@ -13,17 +13,22 @@ enum KeyType {
 
 // Values for an Asset object.
 message Asset {
+    // Total amount
     int64 amount = 1;
+
+    // Number of decimals defined
     uint32 decimals = 2;
+
+    // Asset symbol
     string symbol = 3;
 }
 
 // Input data necessary to create a signed transaction.
 message SigningInput {
-    // Chain id (256-bit number)
+    // Chain id (uint256, serialized big endian)
     bytes chain_id = 1;
 
-    // Reference Block Id (256-bits)
+    // Reference Block Id (uint256, serialized big endian)
     bytes reference_block_id = 2;
 
     // Timestamp on the reference block
@@ -44,18 +49,24 @@ message SigningInput {
     // Asset details and amount
     Asset asset = 8;
 
-    // Sender's private key's raw bytes
+    // Sender's secret private key used for signing (32 bytes).
     bytes private_key = 9;
 
     // Type of the private key
     KeyType private_key_type = 10;
+
+    // Expiration of the transaction, if not set, default is reference_block_time + 3600 seconds
+    sfixed32 expiration = 11;
 }
 
-// Transaction signing output.
+// Result containing the signed and encoded transaction.
 message SigningOutput {
     // JSON of the packed transaction.
     string json_encoded = 1;
 
     // Optional error
     Common.Proto.SigningError error = 2;
+
+    // error code description
+    string error_message = 3;
 }

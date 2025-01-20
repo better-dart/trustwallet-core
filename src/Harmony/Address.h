@@ -1,8 +1,6 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #pragma once
 
@@ -30,7 +28,7 @@ public:
     }
 
     /// Initializes an address with a public key.
-    Address(const PublicKey& publicKey) : Bech32Address(hrp, HASHER_SHA3K, publicKey) {
+    Address(const PublicKey& publicKey) : Bech32Address(hrp, Hash::HasherKeccak256, publicKey) {
         if (publicKey.type != TWPublicKeyTypeSECP256k1Extended) {
             throw std::invalid_argument("address may only be an extended SECP256k1 public key");
         }      

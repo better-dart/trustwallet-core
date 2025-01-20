@@ -1,13 +1,11 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #pragma once
 
 #include "../Base58Address.h"
-#include "../Data.h"
+#include "Data.h"
 #include "../PublicKey.h"
 
 #include <array>
@@ -24,7 +22,9 @@ class Address : public Base58Address<26> {
     static const signed char testnet = 'T';
 
     template <typename T>
-    static Data secureHash(const T &data);
+    static Data secureHash(const T &data) {
+        return Hash::keccak256(Hash::blake2b(data, 32));
+    }
 
     /// Determines whether a string makes a valid address.
     static bool isValid(const std::string& string);

@@ -1,16 +1,13 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #include "Signer.h"
 #include <TrezorCrypto/ed25519.h>
 
 #include <algorithm>
 
-using namespace TW;
-using namespace TW::Nimiq;
+namespace TW::Nimiq {
 
 Proto::SigningOutput Signer::sign(const Proto::SigningInput& input) noexcept {
     auto key = PrivateKey(Data(input.private_key().begin(), input.private_key().end()));
@@ -22,7 +19,8 @@ Proto::SigningOutput Signer::sign(const Proto::SigningInput& input) noexcept {
         /* destination */Address(input.destination()),
         /* amount */input.value(),
         /* fee */input.fee(),
-        /* vsh */input.validity_start_height()
+        /* vsh */input.validity_start_height(),
+        /* networkId */input.network_id()
     );
 
     auto signer = Signer();
@@ -39,3 +37,5 @@ void Signer::sign(const PrivateKey& privateKey, Transaction& transaction) const 
     auto signature = privateKey.sign(preImage, TWCurveED25519);
     std::copy(signature.begin(), signature.end(), transaction.signature.begin());
 }
+
+} // namespace TW::Nimiq

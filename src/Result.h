@@ -1,8 +1,6 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #pragma once
 
@@ -42,7 +40,7 @@ struct Result {
     using Storage = typename std::aligned_storage<Size, Align>::type;
 
     /// Wether the operation succeeded.
-    bool success_;
+    bool success_{false};
     Storage storage_;
 
   public:
@@ -73,6 +71,7 @@ struct Result {
         } else {
             new (&storage_) E(other.get<E>());
         }
+        return *this;
     }
 
     Result(Result&& other) {
@@ -96,6 +95,7 @@ struct Result {
         } else {
             new (&storage_) E(std::move(other.get<E>()));
         }
+        return *this;
     }
 
     ~Result() {
@@ -120,10 +120,10 @@ struct Result {
     E error() const { return get<E>(); }
 
     /// Returns a new success result with the given payloadd.
-    static Result<T, E> success(T&& val) { return Result(Types::Success<T>(std::forward<T>(val))); }
+    static Result<T, E> success(T&& val) { return Result(Types::Success<T>(std::move(val))); }
 
     /// Returns a new failure result with the given error.
-    static Result<T, E> failure(E&& val) { return Result(Types::Failure<E>(std::forward<E>(val))); }
+    static Result<T, E> failure(E&& val) { return Result(Types::Failure<E>(std::move(val))); }
 
     static Result<T, E> failure(E& val) { return Result(Types::Failure<E>(val)); }
 
@@ -150,7 +150,7 @@ struct Result<void, E> {
 
   public:
     /// Initializes a success result with a payload.
-    Result(Types::Success<void> payload) : success_(true), error_() {}
+    Result([[maybe_unused]] Types::Success<void> payload) : success_(true), error_() {}
 
     /// Initializes a failure result.
     Result(Types::Failure<E> error) : success_(false), error_(error.val) {}
@@ -169,7 +169,7 @@ struct Result<void, E> {
 
     /// Returns a new failure result with the given error.
     static Result<void, E> failure(E&& val) {
-        return Result(Types::Failure<E>(std::forward<E>(val)));
+        return Result(Types::Failure<E>(std::move(val)));
     }
 
     operator bool() const { return success_; }

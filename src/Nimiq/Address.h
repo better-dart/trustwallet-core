@@ -1,8 +1,6 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #pragma once
 
@@ -22,7 +20,7 @@ class Address {
 
     /// Address data consisting of a prefix byte followed by the public key
     /// hash.
-    std::array<uint8_t, size> bytes;
+    std::array<uint8_t, size> bytes{};
 
     /// Determines whether a collection of bytes makes a valid  address.
     static bool isValid(const std::vector<uint8_t>& data) { return data.size() == size; }

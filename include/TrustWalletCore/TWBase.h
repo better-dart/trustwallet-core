@@ -1,8 +1,6 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #if !defined(TW_EXTERN_C_BEGIN)
 #if defined(__cplusplus)
@@ -13,6 +11,9 @@
 #define TW_EXTERN_C_END
 #endif
 #endif
+
+// Marker for default visibility
+#define TW_VISIBILITY_DEFAULT __attribute__((visibility("default")))
 
 // Marker for exported classes
 #define TW_EXPORT_CLASS
@@ -52,6 +53,13 @@
 #define TW_ASSUME_NONNULL_END
 #endif
 
+#if defined(__cplusplus) && (__cplusplus >= 201402L)
+#  define TW_DEPRECATED(since) [[deprecated("Since " #since)]]
+#  define TW_DEPRECATED_FOR(since, replacement) [[deprecated("Since " #since "; use " #replacement)]]
+#else
+#  define TW_DEPRECATED(since)
+#  define TW_DEPRECATED_FOR(since, replacement)
+#endif
 
 #if !__has_feature(nullability)
 #ifndef _Nullable

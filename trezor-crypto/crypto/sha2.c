@@ -589,7 +589,7 @@ void sha1_Update(SHA1_CTX* context, const sha2_byte *data, size_t len) {
 	usedspace = freespace = 0;
 }
 
-void sha1_Final(SHA1_CTX* context, sha2_byte digest[]) {
+void sha1_Final(SHA1_CTX* context, sha2_byte digest[SHA1_DIGEST_LENGTH]) {
 	unsigned int	usedspace = 0;
 
 	/* If no digest buffer is passed, we don't bother doing this: */
@@ -643,7 +643,7 @@ void sha1_Final(SHA1_CTX* context, sha2_byte digest[]) {
 	usedspace = 0;
 }
 
-char *sha1_End(SHA1_CTX* context, char buffer[]) {
+char *sha1_End(SHA1_CTX* context, char buffer[SHA1_DIGEST_STRING_LENGTH]) {
 	sha2_byte	digest[SHA1_DIGEST_LENGTH] = {0}, *d = digest;
 	int		i = 0;
 
@@ -896,7 +896,7 @@ void sha256_Update(SHA256_CTX* context, const sha2_byte *data, size_t len) {
 	usedspace = freespace = 0;
 }
 
-void sha256_Final(SHA256_CTX* context, sha2_byte digest[]) {
+void sha256_Final(SHA256_CTX* context, sha2_byte digest[SHA256_DIGEST_LENGTH]) {
 	unsigned int	usedspace = 0;
 
 	/* If no digest buffer is passed, we don't bother doing this: */
@@ -950,7 +950,7 @@ void sha256_Final(SHA256_CTX* context, sha2_byte digest[]) {
 	usedspace = 0;
 }
 
-char *sha256_End(SHA256_CTX* context, char buffer[]) {
+char *sha256_End(SHA256_CTX* context, char buffer[SHA256_DIGEST_STRING_LENGTH]) {
 	sha2_byte	digest[SHA256_DIGEST_LENGTH] = {0}, *d = digest;
 	int		i = 0;
 
@@ -1250,7 +1250,7 @@ static void sha512_Last(SHA512_CTX* context) {
 	sha512_Transform(context->state, context->buffer, context->state);
 }
 
-void sha512_Final(SHA512_CTX* context, sha2_byte digest[]) {
+void sha512_Final(SHA512_CTX* context, sha2_byte digest[SHA512_DIGEST_LENGTH]) {
 	/* If no digest buffer is passed, we don't bother doing this: */
 	if (digest != (sha2_byte*)0) {
 		sha512_Last(context);
@@ -1269,7 +1269,7 @@ void sha512_Final(SHA512_CTX* context, sha2_byte digest[]) {
 	memzero(context, sizeof(SHA512_CTX));
 }
 
-char *sha512_End(SHA512_CTX* context, char buffer[]) {
+char *sha512_End(SHA512_CTX* context, char buffer[SHA512_DIGEST_STRING_LENGTH]) {
 	sha2_byte	digest[SHA512_DIGEST_LENGTH] = {0}, *d = digest;
 	int		i = 0;
 

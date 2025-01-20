@@ -1,8 +1,6 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #include "../PrivateKey.h"
 #include "../PublicKey.h"
@@ -11,14 +9,15 @@
 #include <TrezorCrypto/rand.h>
 #include <TrezorCrypto/secp256k1.h>
 #include <TrustWalletCore/TWPrivateKey.h>
+#include <TrustWalletCore/TWCoinType.h>
 
 #include <exception>
 
 using namespace TW;
 
 struct TWPrivateKey *TWPrivateKeyCreate() {
-    Data bytes(PrivateKey::size);
-    random_buffer(bytes.data(), PrivateKey::size);
+    Data bytes(PrivateKey::_size);
+    random_buffer(bytes.data(), PrivateKey::_size);
     if (!PrivateKey::isValid(bytes)) {
         // Under no circumstance return an invalid private key. We'd rather
         // crash. This also captures cases where the random generator fails
@@ -62,40 +61,31 @@ TWData *TWPrivateKeyData(struct TWPrivateKey *_Nonnull pk) {
 }
 
 struct TWPublicKey *_Nonnull TWPrivateKeyGetPublicKeyNist256p1(struct TWPrivateKey *_Nonnull pk) {
-    return new TWPublicKey{ pk->impl.getPublicKey(TWPublicKeyTypeNIST256p1) };
+    return TWPrivateKeyGetPublicKeyByType(pk, TWPublicKeyTypeNIST256p1);
 }
 
 struct TWPublicKey *_Nonnull TWPrivateKeyGetPublicKeySecp256k1(struct TWPrivateKey *_Nonnull pk, bool compressed) {
     if (compressed)  {
-        return new TWPublicKey{ pk->impl.getPublicKey(TWPublicKeyTypeSECP256k1) };
+        return TWPrivateKeyGetPublicKeyByType(pk, TWPublicKeyTypeSECP256k1);
      } else {
-        return new TWPublicKey{ pk->impl.getPublicKey(TWPublicKeyTypeSECP256k1Extended) };
+         return TWPrivateKeyGetPublicKeyByType(pk, TWPublicKeyTypeSECP256k1Extended);
      }
 }
 
 struct TWPublicKey *_Nonnull TWPrivateKeyGetPublicKeyEd25519(struct TWPrivateKey *_Nonnull pk) {
-    return new TWPublicKey{ pk->impl.getPublicKey(TWPublicKeyTypeED25519) };
+    return TWPrivateKeyGetPublicKeyByType(pk, TWPublicKeyTypeED25519);
 }
 
 struct TWPublicKey *_Nonnull TWPrivateKeyGetPublicKeyEd25519Blake2b(struct TWPrivateKey *_Nonnull pk) {
-    return new TWPublicKey{ pk->impl.getPublicKey(TWPublicKeyTypeED25519Blake2b) };
+    return TWPrivateKeyGetPublicKeyByType(pk, TWPublicKeyTypeED25519Blake2b);
 }
 
-struct TWPublicKey *_Nonnull TWPrivateKeyGetPublicKeyEd25519Extended(struct TWPrivateKey *_Nonnull pk) {
-    return new TWPublicKey{ pk->impl.getPublicKey(TWPublicKeyTypeED25519Extended) };
+struct TWPublicKey *_Nonnull TWPrivateKeyGetPublicKeyEd25519Cardano(struct TWPrivateKey *_Nonnull pk) {
+    return TWPrivateKeyGetPublicKeyByType(pk, TWPublicKeyTypeED25519Cardano);
 }
 
 struct TWPublicKey *_Nonnull TWPrivateKeyGetPublicKeyCurve25519(struct TWPrivateKey *_Nonnull pk) {
-    return new TWPublicKey{pk->impl.getPublicKey(TWPublicKeyTypeCURVE25519)};
-}
-
-TWData *_Nullable TWPrivateKeyGetSharedKey(const struct TWPrivateKey *_Nonnull pk, const struct TWPublicKey *_Nonnull publicKey, enum TWCurve curve) {
-    auto result = pk->impl.getSharedKey(publicKey->impl, curve);
-    if (result.empty()) {
-        return nullptr;
-    } else {
-        return TWDataCreateWithBytes(result.data(), result.size());
-    }
+    return TWPrivateKeyGetPublicKeyByType(pk, TWPublicKeyTypeCURVE25519);
 }
 
 TWData *TWPrivateKeySign(struct TWPrivateKey *_Nonnull pk, TWData *_Nonnull digest, enum TWCurve curve) {
@@ -108,9 +98,9 @@ TWData *TWPrivateKeySign(struct TWPrivateKey *_Nonnull pk, TWData *_Nonnull dige
     }
 }
 
-TWData *TWPrivateKeySignAsDER(struct TWPrivateKey *_Nonnull pk, TWData *_Nonnull digest, enum TWCurve curve) {
+TWData* TWPrivateKeySignAsDER(struct TWPrivateKey* pk, TWData* digest) {
     auto& d = *reinterpret_cast<const Data*>(digest);
-    auto result = pk->impl.signAsDER(d, curve);
+    auto result = pk->impl.signAsDER(d);
     if (result.empty()) {
         return nullptr;
     } else {
@@ -118,13 +108,21 @@ TWData *TWPrivateKeySignAsDER(struct TWPrivateKey *_Nonnull pk, TWData *_Nonnull
     }
 }
 
-TWData *TWPrivateKeySignSchnorr(struct TWPrivateKey *_Nonnull pk, TWData *_Nonnull message, enum TWCurve curve) {
+TWData *TWPrivateKeySignZilliqaSchnorr(struct TWPrivateKey *_Nonnull pk, TWData *_Nonnull message) {
     const auto& msg = *reinterpret_cast<const Data*>(message);
-    auto result = pk->impl.signSchnorr(msg, curve);
+    auto result = pk->impl.signZilliqa(msg);
 
     if (result.empty()) {
         return nullptr;
     } else {
         return TWDataCreateWithBytes(result.data(), result.size());
     }
+}
+
+struct TWPublicKey* TWPrivateKeyGetPublicKey(struct TWPrivateKey* pk, enum TWCoinType coinType) {
+    return TWPrivateKeyGetPublicKeyByType(pk, TWCoinTypePublicKeyType(coinType));
+}
+
+struct TWPublicKey* TWPrivateKeyGetPublicKeyByType(struct TWPrivateKey* pk, enum TWPublicKeyType pubkeyType) {
+    return new TWPublicKey{ pk->impl.getPublicKey(pubkeyType) };
 }

@@ -1,8 +1,6 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 import XCTest
 import WalletCore
@@ -73,5 +71,13 @@ class ZcashTests: XCTestCase {
 
         XCTAssertEqual(output.error, TW_Common_Proto_SigningError.ok)
         XCTAssertEqual(output.encoded.hexString, "0400008085202f890153685b8809efc50dd7d5cb0906b307a1b8aa5157baa5fc1bd6fe2d0344dd193a000000006b483045022100ca0be9f37a4975432a52bb65b25e483f6f93d577955290bb7fb0060a93bfc92002203e0627dff004d3c72a957dc9f8e4e0e696e69d125e4d8e275d119001924d3b48012103b243171fae5516d1dc15f9178cfcc5fdc67b0a883055c117b01ba8af29b953f6ffffffff0140720700000000001976a91449964a736f3713d64283fd0018626ba50091c7e988ac00000000000000000000000000000000000000")
+    }
+
+    func testLockScript() {
+        let script = BitcoinScript.lockScriptForAddress(address: "t1NsqaL1G2XD6xWfVmeAi9gLUVFct59zJu4", coin: .zcash)
+        XCTAssertTrue(!script.data.isEmpty)
+
+        let script2 = BitcoinScript.lockScriptForAddress(address: "t1XeXHdaaXbdEaBCz1cMib5rvg34RjTWR6N", coin: .zelcash)
+        XCTAssertTrue(!script2.data.isEmpty)
     }
 }

@@ -1,13 +1,11 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #include "Address.h"
+#include "Crc.h"
 #include "../Base32.h"
 #include "../HexCoding.h"
-#include "Crc.h"
 
 #include <TrezorCrypto/memzero.h>
 #include <TrustWalletCore/TWStellarVersionByte.h>
@@ -15,33 +13,28 @@
 #include <array>
 #include <cassert>
 
-using namespace TW::Stellar;
+namespace TW::Stellar {
 
 bool Address::isValid(const std::string& string) {
-    bool valid = false;
-
     if (string.length() != size) {
         return false;
     }
 
     // Check that it decodes correctly
     Data decoded;
-    valid = Base32::decode(string, decoded);
+    if (!Base32::decode(string, decoded) || decoded.size() != rawSize) {
+        return false;
+    }
 
     // ... and that version byte is 0x30
-    if (valid && TWStellarVersionByte(decoded[0]) != TWStellarVersionByte::TWStellarVersionByteAccountID) {
-        valid = false;
+    if (TWStellarVersionByte(decoded[0]) != TWStellarVersionByte::TWStellarVersionByteAccountID) {
+        return false;
     }
 
     // ... and that checksums match
-    uint16_t checksum_expected = Crc::crc16(decoded.data(), 33);
-    uint16_t checksum_actual = static_cast<uint16_t>((decoded[34] << 8) | decoded[33]); // unsigned short (little endian)
-    if (valid && checksum_expected != checksum_actual) {
-        valid = false;
-    }
-
-    memzero(decoded.data(), decoded.size());
-    return valid;
+    auto checksum_expected = Crc::crc16(decoded.data(), 33);
+    auto checksum_actual = static_cast<uint16_t>((decoded[34] << 8) | decoded[33]); // unsigned short (little endian)
+    return checksum_expected == checksum_actual;
 }
 
 Address::Address(const std::string& string) {
@@ -82,3 +75,5 @@ std::string Address::string() const {
     auto out = Base32::encode(bytesAsData);
     return out;
 }
+
+} // namespace TW::Stellar
