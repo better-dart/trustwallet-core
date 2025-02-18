@@ -1,8 +1,6 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #include <assert.h>
 #include <vector>
@@ -10,7 +8,7 @@
 #include "TWJNIData.h"
 
 jbyteArray TWDataJByteArray(TWData *_Nonnull data, JNIEnv *env) {
-    jsize dataSize = static_cast<jsize>(TWDataSize(data));
+    auto dataSize = static_cast<jsize>(TWDataSize(data));
     jbyteArray array = env->NewByteArray(dataSize);
     env->SetByteArrayRegion(array, 0, dataSize, (jbyte *) TWDataBytes(data));
     TWDataDelete(data);
@@ -20,5 +18,7 @@ jbyteArray TWDataJByteArray(TWData *_Nonnull data, JNIEnv *env) {
 TWData *_Nonnull TWDataCreateWithJByteArray(JNIEnv *env, jbyteArray _Nonnull array) {
     jsize size = env->GetArrayLength(array);
     jbyte *bytes = env->GetByteArrayElements(array, nullptr);
-    return TWDataCreateWithBytes((uint8_t *) bytes, size);
+    const auto *twdata = TWDataCreateWithBytes((uint8_t *) bytes, size);
+    env->ReleaseByteArrayElements(array, bytes, JNI_ABORT);
+    return twdata;
 }

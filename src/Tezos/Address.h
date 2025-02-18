@@ -1,13 +1,11 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #pragma once
 
 #include "../Base58Address.h"
-#include "../Data.h"
+#include "Data.h"
 #include "../PublicKey.h"
 
 #include <string>
@@ -33,6 +31,9 @@ class Address : public TW::Base58Address<23> {
 
     /// Forge an address to hex bytes.
     Data forge() const;
+
+    // without type prefix
+    Data forgePKH() const;
 };
 
 } // namespace TW::Tezos

@@ -1,27 +1,47 @@
 #!/usr/bin/env bash
+#
+# Initializes the workspace with dependencies, then performs full build
 
 # Fail if any commands fails
 set -e
 
-echo "#### Initializing... ####"
-tools/install-dependencies
+source tools/parse_args "$@"
 
-echo "#### Generating files... ####"
-tools/generate-files
-
-echo "#### Building... ####"
-cmake -H. -Bbuild -DCMAKE_BUILD_TYPE=Debug
-make -Cbuild -j12 tests TrezorCryptoTests
-
-if [ -x "$(command -v clang-tidy)" ]; then
-    echo "#### Linting... ####"
-    tools/lint
+if isHelp; then
+  echo "usage: bootstrap.sh [-h | --help] [all | wasm | android | ios]"
+  echo ""
+  echo "Installs dependencies and prepares WalletCore for building"
+  exit 0
 fi
 
-echo "#### Testing... ####"
-export CK_TIMEOUT_MULTIPLIER=4
-build/trezor-crypto/crypto/tests/TrezorCryptoTests
+echo "#### Installing system dependencies ... ####"
+if [[ $(uname) == "Darwin" ]]; then
+  tools/install-sys-dependencies-mac
+else
+  tools/install-sys-dependencies-linux
+fi
 
-ROOT="`dirname \"$0\"`"
-TESTS_ROOT="`(cd \"$ROOT/tests\" && pwd)`"
-build/tests/tests "$TESTS_ROOT"
+echo "#### Installing C++ libraries ... ####"
+tools/install-dependencies
+
+echo "#### Installing Rust toolchain and tools ... ####"
+tools/install-rust-dependencies dev
+
+# WASM
+if isTargetSpecified "wasm"; then
+  echo "#### Installing WASM environment ... ####"
+  tools/install-wasm-dependencies
+fi
+
+# Android
+if isTargetSpecified "android"; then
+  echo "#### Installing Android dependencies ... ####"
+  tools/install-android-dependencies
+fi
+
+echo "#### Generating files... ####"
+tools/generate-files "$@"
+
+echo ""
+echo "WalletCore is ready for development!"
+echo "Consider running native C++ tests via './tools/build-and-test'"

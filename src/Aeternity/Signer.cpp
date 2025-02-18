@@ -1,11 +1,8 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #include "Signer.h"
-#include "Address.h"
 #include "Base58.h"
 #include "Base64.h"
 #include "HexCoding.h"
@@ -14,9 +11,10 @@
 #include <Ethereum/RLP.h>
 
 using namespace TW;
-using namespace TW::Aeternity;
 
-Proto::SigningOutput Signer::sign(const Proto::SigningInput &input) noexcept {
+namespace TW::Aeternity {
+
+Proto::SigningOutput Signer::sign(const Proto::SigningInput& input) noexcept {
     auto privateKey = PrivateKey(Data(input.private_key().begin(), input.private_key().end()));
     std::string sender_id = input.from_address();
     std::string recipient_id = input.to_address();
@@ -29,7 +27,7 @@ Proto::SigningOutput Signer::sign(const Proto::SigningInput &input) noexcept {
 
 /// implementation copied from
 /// https://github.com/aeternity/aepp-sdk-go/blob/07aa8a77e5/aeternity/helpers.go#L367
-Proto::SigningOutput Signer::sign(const TW::PrivateKey &privateKey, Transaction &transaction) {
+Proto::SigningOutput Signer::sign(const TW::PrivateKey& privateKey, Transaction& transaction) {
     auto txRlp = transaction.encode();
 
     /// append networkId and txRaw
@@ -37,7 +35,7 @@ Proto::SigningOutput Signer::sign(const TW::PrivateKey &privateKey, Transaction 
 
     /// sign ed25519
     auto sigRaw = privateKey.sign(msg, TWCurveED25519);
-    auto signature = Identifiers::prefixSignature + Base58::bitcoin.encodeCheck(sigRaw);
+    auto signature = Identifiers::prefixSignature + Base58::encodeCheck(sigRaw);
 
     /// encode the message using rlp
     auto rlpTxRaw = buildRlpTxRaw(txRlp, sigRaw);
@@ -48,20 +46,23 @@ Proto::SigningOutput Signer::sign(const TW::PrivateKey &privateKey, Transaction 
     return createProtoOutput(signature, signedEncodedTx);
 }
 
-Data Signer::buildRlpTxRaw(Data& txRaw, Data& sigRaw) {
-    auto rlpTxRaw = Data();
-    auto signaturesList = Data();
-    append(signaturesList, Ethereum::RLP::encode(sigRaw));
+Data Signer::buildRlpTxRaw(const Data& txRaw, const Data& sigRaw) {
+    EthereumRlp::Proto::EncodingInput input;
+    auto* rlpList = input.mutable_item()->mutable_list();
 
-    append(rlpTxRaw, Ethereum::RLP::encode(Identifiers::objectTagSignedTransaction));
-    append(rlpTxRaw, Ethereum::RLP::encode(Identifiers::rlpMessageVersion));
-    append(rlpTxRaw, Ethereum::RLP::encodeList(signaturesList));
-    append(rlpTxRaw, Ethereum::RLP::encode(txRaw));
+    rlpList->add_items()->set_number_u64(Identifiers::objectTagSignedTransaction);
+    rlpList->add_items()->set_number_u64(Identifiers::rlpMessageVersion);
 
-    return Ethereum::RLP::encodeList(rlpTxRaw);
+    // Append a list of signatures.
+    auto* signaturesList = rlpList->add_items()->mutable_list();
+    signaturesList->add_items()->set_data(sigRaw.data(), sigRaw.size());
+
+    rlpList->add_items()->set_data(txRaw.data(), txRaw.size());
+
+    return Ethereum::RLP::encode(input);
 }
 
-Data Signer::buildMessageToSign(Data& txRaw) {
+Data Signer::buildMessageToSign(const Data& txRaw) {
     auto data = Data();
     Data bytes(Identifiers::networkId.begin(), Identifiers::networkId.end());
     append(data, bytes);
@@ -87,3 +88,5 @@ std::string Signer::encodeBase64WithChecksum(const std::string& prefix, const TW
 
     return prefix + TW::Base64::encode(data);
 }
+
+} // namespace TW::Aeternity

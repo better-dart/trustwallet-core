@@ -1,14 +1,12 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #pragma once
 
 #include "Prefixes.h"
 #include "Transaction.h"
-#include "../Data.h"
+#include "Data.h"
 #include "../Hash.h"
 #include "../PrivateKey.h"
 #include "../proto/EOS.pb.h"
@@ -35,7 +33,14 @@ class Signer {
     /// Computes the transaction hash.
     Data hash(const Transaction& transaction) const noexcept;
 
+    /// Serialize the transaction.
+    Data serializeTx(const Transaction& transaction) const noexcept;
+    
     static int isCanonical(uint8_t by, uint8_t sig[64]);
+    
+    Transaction buildTx(const Proto::SigningInput& input) const;
+    Data buildUnsignedTx(const Proto::SigningInput& input) noexcept;
+    std::string buildSignedTx(const Proto::SigningInput& input, const Data& signature) noexcept;
 };
 
 } // namespace TW::EOS

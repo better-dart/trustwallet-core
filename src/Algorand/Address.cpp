@@ -1,17 +1,13 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #include "Address.h"
-#include "../HexCoding.h"
-#include "../Hash.h"
 #include "../Base32.h"
 
 #include <array>
 
-using namespace TW::Algorand;
+namespace TW::Algorand {
 
 bool Address::isValid(const std::string& string) {
     if (string.size() != encodedSize) {
@@ -63,3 +59,5 @@ std::string Address::string() const {
     std::string encoded = Base32::encode(data);
     return encoded;
 }
+
+} // namespace TW::Algorand

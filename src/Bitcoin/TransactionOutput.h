@@ -1,13 +1,13 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #pragma once
 
 #include "Amount.h"
 #include "Script.h"
+#include "Data.h"
+#include "PublicKey.h"
 
 #include <memory>
 
@@ -29,12 +29,7 @@ struct TransactionOutput {
     TransactionOutput(Amount value, Script script) : value(value), script(std::move(script)) {}
 
     /// Encodes the output into the provided buffer.
-    void encode(std::vector<uint8_t>& data) const;
+    void encode(Data& data) const;
 };
 
 } // namespace TW::Bitcoin
-
-/// Wrapper for C interface.
-struct TWBitcoinTransactionOutput {
-    TW::Bitcoin::TransactionOutput impl;
-};

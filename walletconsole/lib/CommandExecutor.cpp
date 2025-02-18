@@ -1,8 +1,6 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #include "CommandExecutor.h"
 #include "WalletConsole.h"
@@ -10,7 +8,6 @@
 #include "Coins.h"
 #include "Util.h"
 #include "Address.h"
-#include "TonCoin.h"
 
 #include "Base64.h"
 #include "HexCoding.h"
@@ -74,7 +71,6 @@ void CommandExecutor::help() const {
     _out << "  addrDP <derivPath>      Derive a new address with the given derivation path (using current coin and mnemonic)" << endl;
     _out << "  addrXpub <xpub> <index> Derive a new address from the given XPUB and address index (using current coin)" << endl;
     _out << "Coin-specific methods:" << endl;
-    _out << "  tonInitMsg <priKey>     Build TON account initialization message." << endl;
     _out << "Transformations:" << endl;
     _out << "  hex <inp>               Encode given string to hex" << endl;
     _out << "  base64Encode <inp>      Encode given hex data to Base64" << endl;
@@ -137,8 +133,6 @@ bool CommandExecutor::executeOne(const string& cmd, const vector<string>& params
     if (cmd == "addrdp") { if (!checkMinParams(params, 1)) { return false; } return _address.deriveFromPath(_activeCoin, params[1], res); }
     if (cmd == "addrxpub") { if (!checkMinParams(params, 2)) { return false; } return _address.deriveFromXpubIndex(_activeCoin, params[1], params[2], res); }
 
-    if (cmd == "toninitmsg") { if (!checkMinParams(params, 1)) { return false; } setCoin("ton", false); return TonCoin::tonInitMsg(params[1], res); }
-
     if (cmd == "hex") { if (!checkMinParams(params, 1)) { return false; } return Util::hex(params[1], res); }
     if (cmd == "base64encode") { if (!checkMinParams(params, 1)) { return false; } return _util.base64Encode(params[1], res); }
     if (cmd == "base64decode") { if (!checkMinParams(params, 1)) { return false; } return _util.base64Decode(params[1], res); }
@@ -193,7 +187,7 @@ string CommandExecutor::parseLine(const string& line, vector<string>& params) {
     return cmd;
 }
 
-bool CommandExecutor::checkMinParams(const vector<string>& params, int n) const {
+bool CommandExecutor::checkMinParams(const vector<string>& params, std::size_t n) const {
     if (params.size() - 1 >= n) {
         return true;
     }

@@ -20,6 +20,9 @@ options.swift = true
 options.java = true
 options.jni_h = true
 options.jni_c = true
+options.wasm_cpp = true
+options.ts_declaration = true
+options.kotlin = true
 
 OptionParser.new do |opts|
   opts.banner = 'Usage: codegen [options]'
@@ -42,6 +45,15 @@ OptionParser.new do |opts|
   opts.on('-c', '--jnic', "Generate JNI code. Default: #{options.jni_c}") do |v|
     options.jni_c = v
   end
+  opts.on('-w', '--wasm-cpp', "Generate cpp code for Wasm(Emscripten). Default: #{options.wasm_cpp}") do |v|
+    options.wasm_cpp = v
+  end
+  opts.on('-t', '--typescript-declaration', "Generate typescript declaration file Default: #{options.ts_declaration}") do |v|
+    options.ts_declaration = v
+  end
+  opts.on('-k', '--kotlin', "Generate Kotlin code. Default: #{options.kotlin}") do |v|
+    options.kotlin = v
+  end
   opts.on_tail('-h', '--help', 'Show this message') do
     puts opts
     exit
@@ -53,7 +65,8 @@ files = []
 Dir.foreach(options.input) do |item|
   next if ['.', '..', '.DS_Store'].include?(item)
 
-  entity = Parser.new(path: File.expand_path(File.join(options.input, item))).parse
+  file_path = File.expand_path(File.join(options.input, item))
+  entity = Parser.new(path: file_path).parse
   next if entity.nil?
 
   entities << entity
@@ -72,4 +85,20 @@ if options.jni_h
 end
 if options.jni_c
   generator.render_jni_c
+end
+if options.wasm_cpp
+  generator.render_wasm_h
+  generator.render_wasm_cpp
+end
+if options.ts_declaration
+  generator.render_ts_declaration
+end
+if options.kotlin
+  generator.render_kotlin_common
+  generator.render_kotlin_android
+  generator.render_kotlin_ios
+  generator.render_kotlin_js
+  generator.render_kotlin_js_accessors
+  generator.render_kotlin_jni_h
+  generator.render_kotlin_jni_c
 end

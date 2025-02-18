@@ -1,14 +1,17 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright © 2017 Trust Wallet.
+
 #pragma once
 
-#include "../Data.h"
+#include "Data.h"
 #include "proto/Tezos.pb.h"
 #include "../PrivateKey.h"
 #include <string>
 
-using namespace TW::Tezos;
-using namespace TW::Tezos::Proto;
-
 namespace TW::Tezos {
+
+using TW::Tezos::Proto::Operation;
 
 class OperationList {
   public:
@@ -18,6 +21,7 @@ class OperationList {
     void addOperation(const Operation& transaction);
     /// Returns a data representation of the operations.
     Data forge(const PrivateKey& privateKey) const;
+    Data forge() const;
     Data forgeBranch() const;
 };
 

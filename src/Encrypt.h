@@ -1,8 +1,6 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #pragma once
 
@@ -11,7 +9,7 @@
 
 namespace TW::Encrypt {
 
-/// Determind needed padding size (used internally)
+/// Determined needed padding size (used internally)
 size_t paddingSize(size_t origSize, size_t blockSize, TWAESPaddingMode paddingMode);
 
 /// Encrypts a block of data using AES in Cipher Block Chaining (CBC) mode.

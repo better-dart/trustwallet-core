@@ -1,8 +1,6 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 import WalletCore
 import XCTest
@@ -51,7 +49,7 @@ class KusamaTests: XCTestCase {
                     $0.value = Data(hexString: "0x02540be400")!
                 }
             }
-            $0.network = .kusama
+            $0.network = CoinType.kusama.ss58Prefix
             $0.transactionVersion = 2
             $0.privateKey = key.data
         }

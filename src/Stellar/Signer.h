@@ -1,12 +1,10 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 #pragma once
 
 #include "Address.h"
-#include "../Data.h"
+#include "Data.h"
 #include "../Hash.h"
 #include "../PrivateKey.h"
 #include "../proto/Stellar.pb.h"
@@ -20,14 +18,16 @@ class Signer {
     /// Signs a Proto::SigningInput transaction
     static Proto::SigningOutput sign(const Proto::SigningInput& input) noexcept;
   public:
-    const Proto::SigningInput& input;
+    const Proto::SigningInput& _input;
 
-    Signer(const Proto::SigningInput& input) : input(input) {}
+    Signer(const Proto::SigningInput& input) : _input(input) {}
 
     /// Signs the given transaction.
     std::string sign() const noexcept;
 
     Data encode(const Proto::SigningInput& input) const;
+    Data signaturePreimage() const;
+    Proto::SigningOutput compile(const Data& sig) const;
 
   private:
     static uint32_t operationType(const Proto::SigningInput& input);

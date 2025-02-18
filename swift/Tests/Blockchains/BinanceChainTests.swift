@@ -1,8 +1,6 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 import XCTest
 import WalletCore
@@ -19,12 +17,22 @@ class BinanceChainTests: XCTestCase {
     }
 
     func testBinanceMainnet() {
-        let wallet = HDWallet(mnemonic: "rabbit tilt arm protect banner ill produce vendor april bike much identify pond upset front easily glass gallery address hair priority focus forest angle", passphrase: "")
+        let wallet = HDWallet(mnemonic: "rabbit tilt arm protect banner ill produce vendor april bike much identify pond upset front easily glass gallery address hair priority focus forest angle", passphrase: "")!
         let key = wallet.getKeyForCoin(coin: .binance)
         let address = CoinType.binance.deriveAddress(privateKey: key)
 
         XCTAssertEqual(key.data.hexString, "727f677b390c151caf9c206fd77f77918f56904b5504243db9b21e51182c4c06")
         XCTAssertEqual("bnb1devga6q804tx9fqrnx0vtu5r36kxgp9tmk4xkm", address.description)
+    }
+
+    func testBinanceTestnet() {
+        let wallet = HDWallet(mnemonic: "rabbit tilt arm protect banner ill produce vendor april bike much identify pond upset front easily glass gallery address hair priority focus forest angle", passphrase: "")!
+        let privateKey = wallet.getKeyForCoin(coin: .binance)
+        let publicKey = privateKey.getPublicKeySecp256k1(compressed: true)
+        let address = AnyAddress(publicKey: publicKey, coin: .binance, hrp: "tbnb")
+
+        XCTAssertEqual(privateKey.data.hexString, "727f677b390c151caf9c206fd77f77918f56904b5504243db9b21e51182c4c06")
+        XCTAssertEqual("tbnb1devga6q804tx9fqrnx0vtu5r36kxgp9t4ruzk2", address.description)
     }
 
     func testSignSendOrder() {
@@ -209,5 +217,54 @@ class BinanceChainTests: XCTestCase {
         let result = AnySigner.signJSON(json, key: key, coin: .binance)
 
         XCTAssertEqual(result, "ca01f0625dee0a4a2a2c87fa0a210a1412e654edef9e508b833736a987d069da5a89aedb12090a03424e4210cb8d5212210a1433bbf307b98146f13d20693cf946c2d77a4caf2812090a03424e4210cb8d52126d0a26eb5ae9872102e58176f271a9796b4288908be85094a2ac978e25535fd59a37b58626e3a84d9e1240015b4beb3d6ef366a7a92fd283f66b8f0d8cdb6b152a9189146b27f84f507f047e248517cf691a36ebc2b7f3b7f64e27585ce1c40f1928d119c31af428efcf3e1882671a0754657374696e672002")
+    }
+
+    func testSignOrderOneThread() {
+        let n = 50
+        for _ in 1...n {
+            testSignSendOrder()
+        }
+    }
+
+    func testMultiThreadedSign() {
+        let nThread = 5
+        let queue = OperationQueue()
+        for _ in 1...nThread {
+            queue.addOperation {
+                self.testSignOrderOneThread()
+            }
+        }
+        queue.waitUntilAllOperationsAreFinished()
+    }
+    
+    func testSignFromWalletConnectRequest() throws {
+        // Step 1: Parse a signing request received through WalletConnect.
+        
+        let requestPayload = """
+        {"signerAddress":"bnb1grpf0955h0ykzq3ar5nmum7y6gdfl6lxfn46h2","signDoc":{"account_number":"19","chain_id":"chain-bnb","memo":"","data":null,"msgs":[{"inputs":[{"address":"bnb1grpf0955h0ykzq3ar5nmum7y6gdfl6lxfn46h2","coins":[{"amount":1001000000,"denom":"BNB"}]}],"outputs":[{"address":"bnb13zeh6hs97d5eu2s5qerguhv8ewwue6u4ywa6yf","coins":[{"amount":1001000000,"denom":"BNB"}]}]}],"sequence":"23","source":"1"}}
+        """
+        let parsingInput = WalletConnectParseRequestInput.with {
+            $0.method = .cosmosSignAmino
+            $0.payload = requestPayload
+        }
+        let parsingInputBytes = try parsingInput.serializedData()
+        
+        let parsingOutputBytes = WalletConnectRequest.parse(coin: .binance, input: parsingInputBytes)
+        let parsingOutput = try WalletConnectParseRequestOutput(serializedData: parsingOutputBytes)
+        
+        var signingInput = parsingOutput.binance
+        
+        // Step 2: Set missing fields.
+        
+        signingInput.privateKey = Data(hexString: "95949f757db1f57ca94a5dff23314accbe7abee89597bf6a3c7382c84d7eb832")!
+        
+        // Step 3: Sign the transaction.
+        
+        let output: BinanceSigningOutput = AnySigner.sign(input: signingInput, coin: .binance)
+        
+        let expected = """
+        {"pub_key":{"type":"tendermint/PubKeySecp256k1","value":"Amo1kgCI2Yw4iMpoxT38k/RWRgJgbLuH8P5e5TPbOOUC"},"signature":"PCTHhMa7+Z1U/6uxU+3LbTxKd0k231xypdMolyVvjgYvMg+0dTMC+wqW8IxHWXTSDt/Ronu+7ac1h/WN3JWJdQ=="}
+        """
+        XCTAssertEqual(output.signatureJson, expected)
     }
 }

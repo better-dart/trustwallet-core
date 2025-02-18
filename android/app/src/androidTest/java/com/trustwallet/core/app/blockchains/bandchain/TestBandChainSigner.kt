@@ -1,8 +1,6 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 package com.trustwallet.core.app.blockchains.bandchain
 
@@ -31,7 +29,7 @@ class TestBandChainSigner {
         val from = AnyAddress(publicKey, BANDCHAIN).description()
 
         val txAmount = Cosmos.Amount.newBuilder().apply {
-            amount = 1
+            amount = "1"
             denom = "uband"
         }.build()
 
@@ -46,7 +44,7 @@ class TestBandChainSigner {
         }.build()
 
         val feeAmount = Cosmos.Amount.newBuilder().apply {
-            amount = 200
+            amount = "200"
             denom = "uband"
         }.build()
 

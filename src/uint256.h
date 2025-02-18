@@ -1,8 +1,6 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #pragma once
 
@@ -13,6 +11,7 @@
 
 namespace TW {
 
+using uint128_t = boost::multiprecision::uint128_t;
 using int256_t = boost::multiprecision::int256_t;
 using uint256_t = boost::multiprecision::uint256_t;
 
@@ -25,20 +24,6 @@ inline uint256_t load(const Data& data) {
     }
     uint256_t result;
     import_bits(result, data.begin(), data.end());
-    return result;
-}
-
-/// Loads a `uint256_t` from a collection of bytes.
-/// The leftmost offset bytes are skipped, and the next 32 bytes are taken.  At least 32 (+offset)
-/// bytes are needed.
-inline uint256_t loadWithOffset(const Data& data, size_t offset) {
-    using boost::multiprecision::cpp_int;
-    if (data.empty() || (data.size() < (256 / 8 + offset))) {
-        // not enough bytes in data
-        return uint256_t(0);
-    }
-    uint256_t result;
-    import_bits(result, data.begin() + offset, data.begin() + offset + 256 / 8);
     return result;
 }
 
@@ -55,12 +40,18 @@ inline uint256_t load(const std::string& data) {
     return result;
 }
 
-/// Stores a `uint256_t` as a collection of bytes.
-inline Data store(const uint256_t& v) {
+/// Stores a `uint256_t` as a collection of bytes, with optional padding (typically to 32 bytes).
+/// If minLen is given (non-zero), and result is shorter, it is padded (with zeroes, on the left, big endian)
+inline Data store(const uint256_t& v, byte minLen = 0) {
     using boost::multiprecision::cpp_int;
     Data bytes;
     bytes.reserve(32);
     export_bits(v, std::back_inserter(bytes), 8);
+    if (minLen && bytes.size() < minLen) {
+        Data padded(minLen - bytes.size());
+        append(padded, bytes);
+        return padded;
+    }
     return bytes;
 }
 

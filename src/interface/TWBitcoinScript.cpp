@@ -1,36 +1,34 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #include <TrustWalletCore/TWBitcoinScript.h>
-
 #include "../Bitcoin/Script.h"
 #include "../Bitcoin/SigHashType.h"
+#include "Data.h"
 
-using namespace TW::Bitcoin;
+#include <iterator>
 
 struct TWBitcoinScript *_Nonnull TWBitcoinScriptCreate() {
-    auto script = new TWBitcoinScript{};
+    auto* script = new TWBitcoinScript{};
     return script;
 }
 
 struct TWBitcoinScript *TWBitcoinScriptCreateWithData(TWData *data) {
-    auto script = new TWBitcoinScript{};
+    auto* script = new TWBitcoinScript{};
     script->impl.bytes.resize(TWDataSize(data));
     TWDataCopyBytes(data, 0, TWDataSize(data), script->impl.bytes.data());
     return script;
 }
 
 struct TWBitcoinScript *_Nonnull TWBitcoinScriptCreateWithBytes(uint8_t *_Nonnull bytes, size_t size) {
-    auto script = new TWBitcoinScript{};
+    auto* script = new TWBitcoinScript{};
     std::copy(bytes, bytes + size, std::back_inserter(script->impl.bytes));
     return script;
 }
 
 struct TWBitcoinScript *TWBitcoinScriptCreateCopy(const struct TWBitcoinScript *script) {
-    auto newScript = new TWBitcoinScript{};
+    auto* newScript = new TWBitcoinScript{};
     newScript->impl.bytes = script->impl.bytes;
     return newScript;
 }
@@ -118,33 +116,46 @@ TWData *TWBitcoinScriptEncode(const struct TWBitcoinScript *script) {
     return TWDataCreateWithBytes(result.data(), result.size());
 }
 
+struct TWBitcoinScript *TWBitcoinScriptBuildPayToPublicKey(TWData *pubkey) {
+    auto* v = reinterpret_cast<const std::vector<uint8_t>*>(pubkey);
+    auto script = TW::Bitcoin::Script::buildPayToPublicKey(*v);
+    return new TWBitcoinScript{ .impl = script };
+}
+
 struct TWBitcoinScript *TWBitcoinScriptBuildPayToPublicKeyHash(TWData *hash) {
-    auto v = reinterpret_cast<const std::vector<uint8_t>*>(hash);
-    auto script = Script::buildPayToPublicKeyHash(*v);
+    auto* v = reinterpret_cast<const std::vector<uint8_t>*>(hash);
+    auto script = TW::Bitcoin::Script::buildPayToPublicKeyHash(*v);
     return new TWBitcoinScript{ .impl = script };
 }
 
 struct TWBitcoinScript *TWBitcoinScriptBuildPayToScriptHash(TWData *scriptHash) {
-    auto v = reinterpret_cast<const std::vector<uint8_t>*>(scriptHash);
-    auto script = Script::buildPayToScriptHash(*v);
+    auto* v = reinterpret_cast<const std::vector<uint8_t>*>(scriptHash);
+    auto script = TW::Bitcoin::Script::buildPayToScriptHash(*v);
     return new TWBitcoinScript{ .impl = script };
 }
 
 struct TWBitcoinScript *TWBitcoinScriptBuildPayToWitnessPubkeyHash(TWData *hash) {
-    auto v = reinterpret_cast<const std::vector<uint8_t>*>(hash);
-    auto script = Script::buildPayToWitnessPublicKeyHash(*v);
+    auto* v = reinterpret_cast<const std::vector<uint8_t>*>(hash);
+    auto script = TW::Bitcoin::Script::buildPayToWitnessPublicKeyHash(*v);
     return new TWBitcoinScript{ .impl = script };
 }
 
 struct TWBitcoinScript *TWBitcoinScriptBuildPayToWitnessScriptHash(TWData *scriptHash) {
-    auto v = reinterpret_cast<const std::vector<uint8_t>*>(scriptHash);
-    auto script = Script::buildPayToWitnessScriptHash(*v);
+    auto* v = reinterpret_cast<const std::vector<uint8_t>*>(scriptHash);
+    auto script = TW::Bitcoin::Script::buildPayToWitnessScriptHash(*v);
     return new TWBitcoinScript{ .impl = script };
 }
 
 struct TWBitcoinScript *_Nonnull TWBitcoinScriptLockScriptForAddress(TWString *_Nonnull address, enum TWCoinType coin) {
-    auto s = reinterpret_cast<const std::string*>(address);
-    auto script = Script::lockScriptForAddress(*s, coin);
+    auto* s = reinterpret_cast<const std::string*>(address);
+    auto script = TW::Bitcoin::Script::lockScriptForAddress(*s, coin);
+    return new TWBitcoinScript{ .impl = script };
+}
+
+struct TWBitcoinScript *_Nonnull TWBitcoinScriptLockScriptForAddressReplay(TWString *_Nonnull address, enum TWCoinType coin, TWData *blockHash, int64_t blockHeight) {
+    auto* s = reinterpret_cast<const std::string*>(address);
+    auto* v = reinterpret_cast<const std::vector<uint8_t>*>(blockHash);
+    auto script = TW::Bitcoin::Script::lockScriptForAddress(*s, coin, *v, blockHeight);
     return new TWBitcoinScript{ .impl = script };
 }
 

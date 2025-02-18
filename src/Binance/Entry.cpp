@@ -1,29 +1,21 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #include "Entry.h"
 
-#include "Address.h"
-#include "Signer.h"
+#include "HexCoding.h"
+#include "proto/Binance.pb.h"
 
-using namespace TW::Binance;
-using namespace std;
+namespace TW::Binance {
 
-bool Entry::validateAddress(TWCoinType coin, const string& address, TW::byte, TW::byte, const char*) const {
-    return Address::isValid(address);
+std::string Entry::signJSON(TWCoinType coin, const std::string& json, const Data& key) const {
+    return signJSONHelper<Proto::SigningInput, Proto::SigningOutput>(
+        coin,
+        json,
+        key,
+        [](const Proto::SigningOutput& output) { return hex(output.encoded()); }
+    );
 }
 
-string Entry::deriveAddress(TWCoinType coin, const PublicKey& publicKey, TW::byte, const char*) const {
-    return Address(publicKey).string();
-}
-
-void Entry::sign(TWCoinType coin, const TW::Data& dataIn, TW::Data& dataOut) const {
-    signTemplate<Signer, Proto::SigningInput>(dataIn, dataOut);
-}
-
-string Entry::signJSON(TWCoinType coin, const std::string& json, const Data& key) const { 
-    return Signer::signJSON(json, key);
-}
+} // namespace TW::Binance

@@ -1,16 +1,14 @@
 // Copyright © 2019 Mart Roosmaa.
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #include "Address.h"
 #include <TrezorCrypto/nano.h>
 
 #include <string>
 
-using namespace TW::Nano;
+namespace TW::Nano {
 
 const std::string kPrefixNano{"nano_"};
 const std::string kPrefixXrb{"xrb_"};
@@ -21,12 +19,12 @@ bool Address::isValid(const std::string& address) {
     valid = nano_validate_address(
         kPrefixNano.c_str(), kPrefixNano.length(),
         address.c_str(), address.length(),
-        NULL);
+        nullptr);
     if (!valid) {
         valid = nano_validate_address(
             kPrefixXrb.c_str(), kPrefixXrb.length(),
             address.c_str(), address.length(),
-            NULL);
+            nullptr);
     }
 
     return valid;
@@ -66,11 +64,13 @@ std::string Address::string() const {
     std::array<char, 5 + 60 + 1 + 1> out = {0};
 
     size_t count = nano_get_address(
-            bytes.data(),
-            kPrefixNano.c_str(), kPrefixNano.length(),
-            out.data(), out.size());
+        bytes.data(),
+        kPrefixNano.c_str(), kPrefixNano.length(),
+        out.data(), out.size());
     // closing \0
     assert(count < out.size());
     out[count] = 0;
-    return std::string(out.data());
+    return {out.data()};
 }
+
+} // namespace TW::Nano

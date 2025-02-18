@@ -1,8 +1,6 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #pragma once
 
@@ -15,19 +13,19 @@
 #include <string>
 #include <vector>
 
-
 namespace TW::Ontology {
 
 class Signer {
-  public:
+public:
     /// Signs a Proto::SigningInput transaction
     static Proto::SigningOutput sign(const Proto::SigningInput& input) noexcept;
-  private:
-    Data publicKey;
-    TW::PrivateKey privateKey;
+    static Data encodeTransaction(const Proto::SigningInput& input, const std::vector<Data>& signatures, const std::vector<PublicKey>& publicKeyss);
+private:
+    Data publicKey; 
+    TW::PrivateKey privKey;
     std::string address;
 
-  public:
+public:
     explicit Signer(TW::PrivateKey priKey);
 
     PrivateKey getPrivateKey() const;
@@ -41,8 +39,3 @@ class Signer {
     void addSign(Transaction& tx) const;
 };
 } // namespace TW::Ontology
-
-/// Wrapper for C interface.
-struct TWOntologySigner {
-    TW::Ontology::Signer impl;
-};

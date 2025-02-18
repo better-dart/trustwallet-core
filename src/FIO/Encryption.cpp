@@ -1,8 +1,6 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #include "Encryption.h"
 
@@ -91,7 +89,8 @@ Data Encryption::getSharedSecret(const PrivateKey& privateKey1, const PublicKey&
     // See https://github.com/fioprotocol/fiojs/blob/master/src/ecc/key_private.js
     
     curve_point KBP;
-	assert(ecdsa_read_pubkey(&secp256k1, publicKey2.bytes.data(), &KBP));
+    [[maybe_unused]] int read_res = ecdsa_read_pubkey(&secp256k1, publicKey2.bytes.data(), &KBP);
+    assert(read_res);
 
     bignum256 privBN;
     bn_read_be(privateKey1.bytes.data(), &privBN);

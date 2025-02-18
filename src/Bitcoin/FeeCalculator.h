@@ -1,8 +1,6 @@
-// Copyright © 2017-2021 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #pragma once
 
@@ -10,28 +8,100 @@
 
 namespace TW::Bitcoin {
 
+inline constexpr double gDefaultBytesPerInput{148};
+inline constexpr double gDefaultBytesPerOutput{34};
+inline constexpr double gDefaultBytesBase{10};
+inline constexpr double gSegwitBytesPerInput{101.25};
+inline constexpr double gSegwitBytesPerOutput{31};
+inline constexpr double gSegwitBytesBase{gDefaultBytesBase};
+
 /// Interface for transaction fee calculator.
 class FeeCalculator {
 public:
-    virtual int64_t calculate(int64_t inputs, int64_t outputs = 2, int64_t byteFee = 1) const = 0;
-    virtual int64_t calculateSingleInput(int64_t byteFee) const = 0;
+    virtual ~FeeCalculator() noexcept = default;
+    [[nodiscard]] virtual int64_t calculate(int64_t inputs, int64_t outputs,
+                                            int64_t byteFee) const noexcept = 0;
+    [[nodiscard]] virtual int64_t calculateSingleInput(int64_t byteFee) const noexcept = 0;
+};
+
+/// Generic fee calculator with linear input and output size, and a fix size
+class LinearFeeCalculator : public FeeCalculator {
+public:
+    const double bytesPerInput;
+    const double bytesPerOutput;
+    const double bytesBase;
+    explicit constexpr LinearFeeCalculator(double bytesPerInput, double bytesPerOutput,
+                                           double bytesBase) noexcept
+        : bytesPerInput(bytesPerInput), bytesPerOutput(bytesPerOutput), bytesBase(bytesBase) {}
+
+    [[nodiscard]] int64_t calculate(int64_t inputs, int64_t outputs,
+                                    int64_t byteFee) const noexcept override;
+    [[nodiscard]] int64_t calculateSingleInput(int64_t byteFee) const noexcept override;
+};
+
+/// Constant fee calculator
+class ConstantFeeCalculator : public FeeCalculator {
+public:
+    const int64_t fee;
+    explicit constexpr ConstantFeeCalculator(int64_t fee) noexcept : fee(fee) {}
+
+    [[nodiscard]] int64_t calculate([[maybe_unused]] int64_t inputs, [[maybe_unused]] int64_t outputs,
+                                    [[maybe_unused]] int64_t byteFee) const noexcept final {
+        return fee;
+    }
+    [[nodiscard]] int64_t calculateSingleInput([[maybe_unused]] int64_t byteFee) const noexcept final { return 0; }
 };
 
 /// Default Bitcoin transaction fee calculator, non-segwit.
-class DefaultFeeCalculator : public FeeCalculator {
+class DefaultFeeCalculator : public LinearFeeCalculator {
+private:
+    bool disableDustFilter = false;
+
 public:
-    int64_t calculate(int64_t inputs, int64_t outputs = 2, int64_t byteFee = 1) const override;
-    int64_t calculateSingleInput(int64_t byteFee) const override;
+    constexpr DefaultFeeCalculator(bool disableFilter = false) noexcept
+        : LinearFeeCalculator(gDefaultBytesPerInput, gDefaultBytesPerOutput, gDefaultBytesBase)
+        , disableDustFilter(disableFilter) {}
+    
+    [[nodiscard]] int64_t calculateSingleInput(int64_t byteFee) const noexcept override {
+        if (disableDustFilter) { 
+            return 0; 
+        }
+        return LinearFeeCalculator::calculateSingleInput(byteFee);
+    }
 };
 
 /// Bitcoin Segwit transaction fee calculator
-class SegwitFeeCalculator : public FeeCalculator {
+class SegwitFeeCalculator : public LinearFeeCalculator {
+private:
+    bool disableDustFilter = false;
+
 public:
-    int64_t calculate(int64_t inputs, int64_t outputs = 2, int64_t byteFee = 1) const override;
-    int64_t calculateSingleInput(int64_t byteFee) const override;
+    constexpr SegwitFeeCalculator(bool disableFilter = false) noexcept
+        : LinearFeeCalculator(gSegwitBytesPerInput, gSegwitBytesPerOutput, gSegwitBytesBase)
+        , disableDustFilter(disableFilter) {}
+
+    [[nodiscard]] int64_t calculateSingleInput(int64_t byteFee) const noexcept override {
+        if (disableDustFilter) {
+            return 0;
+        }
+        return LinearFeeCalculator::calculateSingleInput(byteFee);
+    }
+};
+
+class Zip0317FeeCalculator: public FeeCalculator {
+public:
+    static constexpr int64_t gMarginalFee = 5000ul;
+    static constexpr int64_t gGraceActions = 2ul;
+
+    Zip0317FeeCalculator() noexcept = default;
+
+    [[nodiscard]] int64_t calculate(int64_t inputs, int64_t outputs, int64_t byteFee) const noexcept final;
+    [[nodiscard]] int64_t calculateSingleInput([[maybe_unused]] int64_t byteFee) const noexcept final {
+        return gMarginalFee;
+    }
 };
 
 /// Return the fee calculator for the given coin.
-FeeCalculator& getFeeCalculator(TWCoinType coinType);
+const FeeCalculator& getFeeCalculator(TWCoinType coinType, bool disableFilter = false, bool zip0317 = false) noexcept;
 
 } // namespace TW::Bitcoin

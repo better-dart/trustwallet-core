@@ -1,18 +1,17 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #include "PBKDF2Parameters.h"
 
 #include <TrezorCrypto/rand.h>
-#include <limits>
 
 using namespace TW;
-using namespace TW::Keystore;
 
-PBKDF2Parameters::PBKDF2Parameters() : salt(32) {
+namespace TW::Keystore {
+
+PBKDF2Parameters::PBKDF2Parameters()
+    : salt(32) {
     random_buffer(salt.data(), salt.size());
 }
 
@@ -41,3 +40,5 @@ nlohmann::json PBKDF2Parameters::json() const {
     j[CodingKeys::iterations] = iterations;
     return j;
 }
+
+} // namespace TW::Keystore

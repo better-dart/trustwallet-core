@@ -1,14 +1,12 @@
-// Copyright © 2017-2020 Trust.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #pragma once
 
 #include "Transaction.h"
 
-#include "../Data.h"
+#include "Data.h"
 #include "../Hash.h"
 #include "../PrivateKey.h"
 #include "../proto/Filecoin.pb.h"
@@ -28,11 +26,22 @@ class Signer {
 
     /// Signs the given transaction.
     static Data sign(const PrivateKey& privateKey, Transaction& transaction) noexcept;
+
+    /// Get transaction data to be signed
+    static TW::Data signaturePreimage(const Proto::SigningInput& input) noexcept;
+
+    /// build transaction with signature
+    static Proto::SigningOutput compile(const Data& signature, const PublicKey& publicKey, const Proto::SigningInput& input) noexcept;
+  
+  private:
+    /// Get transaction data for secp256k1 to be signed
+    static Transaction buildTx(const PublicKey& publicKey, const Proto::SigningInput& input) noexcept;
+
+    /// Signs a Proto::SigningInput transaction.
+    static Proto::SigningOutput signSecp256k1(const Proto::SigningInput& input);
+
+    /// Signs a Proto::SigningInput transaction.
+    static Proto::SigningOutput signDelegated(const Proto::SigningInput& input);
 };
 
 } // namespace TW::Filecoin
-
-/// Wrapper for C interface.
-struct TWFilecoinSigner {
-    TW::Filecoin::Signer impl;
-};

@@ -1,8 +1,6 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #include "Address.h"
 
@@ -29,9 +27,9 @@ bool Address::addrPub(const string& coinid, const string& pubkey_in, string& res
         pubDat = parse_hex(pubkey_in);
     } catch (exception& ex) {
         _out << "Error: could not parse public key data" << endl;
-        return false; 
+        return false;
     }
-    TWCoinType ctype = (TWCoinType)coin.c;
+    auto ctype = (TWCoinType)coin.c;
     PublicKey pubKey = PublicKey(pubDat, (TWPublicKeyType)coin.pubKeyType);
     res = TW::deriveAddress(ctype, pubKey);
     return true;
@@ -45,18 +43,18 @@ bool Address::addrPri(const string& coinid, const string& prikey_in, string& res
         priDat = parse_hex(prikey_in);
     } catch (exception& ex) {
         _out << "Error: could not parse private key data" << endl;
-        return false; 
+        return false;
     }
-    TWCoinType ctype = (TWCoinType)coin.c;
+    auto ctype = (TWCoinType)coin.c;
     PrivateKey priKey = PrivateKey(priDat);
     res = TW::deriveAddress(ctype, priKey);
     return true;
 }
 
-bool Address::addr(const string& coinid, const string& addrStr, string& res) {
+bool Address::addr(const string& coinid, const string& addrStr, [[maybe_unused]] string& res) {
     Coin coin;
     if (!_coins.findCoin(coinid, coin)) { return false; }
-    TWCoinType ctype = (TWCoinType)coin.c;
+    auto ctype = (TWCoinType)coin.c;
     if (!TW::validateAddress(ctype, addrStr)) {
         _out << "Address is not a valid " << coin.name << " address! " << addrStr << endl;
         return false;
@@ -68,7 +66,7 @@ bool Address::addr(const string& coinid, const string& addrStr, string& res) {
 bool Address::addrDefault(const string& coinid, string& res) {
     Coin coin;
     if (!_coins.findCoin(coinid, coin)) { return false; }
-    TWCoinType ctype = (TWCoinType)coin.c;
+    auto ctype = (TWCoinType)coin.c;
     string mnemo = _keys.getMnemo();
     assert(mnemo.length() > 0); // a mnemonic is always set
     HDWallet wallet(mnemo, "");
@@ -82,7 +80,7 @@ bool Address::addrDefault(const string& coinid, string& res) {
 bool Address::deriveFromPath(const string& coinid, const string& derivPath, string& res) {
     Coin coin;
     if (!_coins.findCoin(coinid, coin)) { return false; }
-    TWCoinType ctype = (TWCoinType)coin.c;
+    auto ctype = (TWCoinType)coin.c;
 
     DerivationPath dp(derivPath);
     // get the private key
@@ -99,7 +97,7 @@ bool Address::deriveFromPath(const string& coinid, const string& derivPath, stri
 bool Address::deriveFromXpubIndex(const string& coinid, const string& xpub, const string& accountIndex, string& res) {
     Coin coin;
     if (!_coins.findCoin(coinid, coin)) { return false; }
-    TWCoinType ctype = (TWCoinType)coin.c;
+    auto ctype = (TWCoinType)coin.c;
 
     int index = std::stoi(accountIndex);
 
@@ -108,7 +106,7 @@ bool Address::deriveFromXpubIndex(const string& coinid, const string& xpub, cons
     dp.setChange(0);
     dp.setAddress(index);
 
-    const auto publicKey = HDWallet::getPublicKeyFromExtended(xpub, ctype, dp);
+    const auto publicKey = HDWallet<>::getPublicKeyFromExtended(xpub, ctype, dp);
     if (!publicKey) { return false; }
     res = TW::deriveAddress(ctype, publicKey.value());
     return true;

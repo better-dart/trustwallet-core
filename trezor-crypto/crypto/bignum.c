@@ -46,7 +46,7 @@
  A limb of a bignum256 is *normalized* iff it's less than 2**29.
  A bignum256 is *normalized* iff every its limb is normalized.
  A number is *fully reduced modulo p* iff it is less than p.
- A number is *partly reduced modulo p* iff is is less than 2*p.
+ A number is *partly reduced modulo p* iff it is less than 2*p.
  The number p is usually a prime number such that 2^256 - 2^224 <= p <= 2^256.
 
  All functions except bn_fast_mod expect that all their bignum256 inputs are
@@ -271,7 +271,7 @@ int bn_is_equal(const bignum256 *x, const bignum256 *y) {
 //   &truecase == &falsecase or &res == &truecase == &falsecase
 void bn_cmov(bignum256 *res, volatile uint32_t cond, const bignum256 *truecase,
              const bignum256 *falsecase) {
-  assert((cond == 1) | (cond == 0));
+  assert((int)(cond == 1) | (cond == 0));
 
   uint32_t tmask = -cond;   // tmask = 0xFFFFFFFF if cond else 0x00000000
   uint32_t fmask = ~tmask;  // fmask = 0x00000000 if cond else 0xFFFFFFFF
@@ -290,7 +290,7 @@ void bn_cmov(bignum256 *res, volatile uint32_t cond, const bignum256 *truecase,
 // Assumes prime is normalized and
 //   0 < prime < 2**260 == 2**(BITS_PER_LIMB * LIMBS - 1)
 void bn_cnegate(volatile uint32_t cond, bignum256 *x, const bignum256 *prime) {
-  assert((cond == 1) | (cond == 0));
+  assert((int)(cond == 1) | (cond == 0));
 
   uint32_t tmask = -cond;   // tmask = 0xFFFFFFFF if cond else 0x00000000
   uint32_t fmask = ~tmask;  // fmask = 0x00000000 if cond else 0xFFFFFFFF

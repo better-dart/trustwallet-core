@@ -1,13 +1,11 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #include <TrustWalletCore/TWAnyAddress.h>
 #include "HexCoding.h"
 
-#include "../interface/TWTestUtilities.h"
+#include "TestUtilities.h"
 #include <gtest/gtest.h>
 
 using namespace TW;
@@ -16,4 +14,11 @@ using namespace TW;
 
 TEST(TW<%= name %>, Address) {
     // TODO: Finalize test implementation
+
+    auto string = STRING("__ADD_VALID_ADDRESS_HERE__");
+    auto addr = WRAP(TWAnyAddress, TWAnyAddressCreateWithString(string.get(), TWCoinType<%= format_name(coin) %>));
+    auto string2 = WRAPS(TWAnyAddressDescription(addr.get()));
+    EXPECT_TRUE(TWStringEqual(string.get(), string2.get()));
+    auto keyHash = WRAPD(TWAnyAddressData(addr.get()));
+    assertHexEqual(keyHash, "__CORRESPONDING_ADDRESS_DATA__");
 }

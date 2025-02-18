@@ -1,8 +1,6 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #include <TrustWalletCore/TWPublicKey.h>
 
@@ -48,16 +46,22 @@ struct TWPublicKey *_Nonnull TWPublicKeyUncompressed(struct TWPublicKey *_Nonnul
     return new TWPublicKey{ pk->impl.extended() };
 }
 
-bool TWPublicKeyVerify(struct TWPublicKey *_Nonnull pk, TWData *signature, TWData *message) {
+bool TWPublicKeyVerify(struct TWPublicKey *_Nonnull pk, TWData *_Nonnull signature, TWData *message) {
     const auto& s = *reinterpret_cast<const TW::Data *>(signature);
     const auto& m = *reinterpret_cast<const TW::Data *>(message);
     return pk->impl.verify(s, m);
 }
 
-bool TWPublicKeyVerifySchnorr(struct TWPublicKey *_Nonnull pk, TWData *_Nonnull signature, TWData *_Nonnull message) {
+bool TWPublicKeyVerifyAsDER(struct TWPublicKey *_Nonnull pk, TWData *_Nonnull signature, TWData *message) {
     const auto& s = *reinterpret_cast<const TW::Data *>(signature);
     const auto& m = *reinterpret_cast<const TW::Data *>(message);
-    return pk->impl.verifySchnorr(s, m);
+    return pk->impl.verifyAsDER(s, m);
+}
+
+bool TWPublicKeyVerifyZilliqaSchnorr(struct TWPublicKey *_Nonnull pk, TWData *_Nonnull signature, TWData *_Nonnull message) {
+    const auto& s = *reinterpret_cast<const TW::Data *>(signature);
+    const auto& m = *reinterpret_cast<const TW::Data *>(message);
+    return pk->impl.verifyZilliqa(s, m);
 }
 
 enum TWPublicKeyType TWPublicKeyKeyType(struct TWPublicKey *_Nonnull publicKey) {

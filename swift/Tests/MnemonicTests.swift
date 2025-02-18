@@ -1,8 +1,6 @@
-// Copyright © 2017-2021 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 import WalletCore
 import XCTest
@@ -27,6 +25,9 @@ class MnemonicTests: XCTestCase {
 
     func testIsWordValid() {
         XCTAssertTrue(Mnemonic.isValidWord(word: "credit"))
+
+        XCTAssertFalse(Mnemonic.isValidWord(word: "di"))
+        XCTAssertFalse(Mnemonic.isValidWord(word: "cr"))
         XCTAssertFalse(Mnemonic.isValidWord(word: "hybridous"))
     }
 

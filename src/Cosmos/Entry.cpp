@@ -1,31 +1,26 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #include "Entry.h"
-
 #include "Address.h"
-#include "Signer.h"
 
-using namespace TW::Cosmos;
+#include <proto/Cosmos.pb.h>
+#include <proto/TransactionCompiler.pb.h>
+#include <google/protobuf/util/json_util.h>
+
+using namespace TW;
 using namespace std;
 
-// Note: avoid business logic from here, rather just call into classes like Address, Signer, etc.
+namespace TW::Cosmos {
 
-bool Entry::validateAddress(TWCoinType coin, const string& address, TW::byte, TW::byte, const char* hrp) const {
-    return Address::isValid(address, hrp);
+string Entry::signJSON(TWCoinType coin, const std::string& json, const Data& key) const {
+    return signJSONHelper<Proto::SigningInput, Proto::SigningOutput>(
+        coin,
+        json,
+        key,
+        [](const Proto::SigningOutput& output) { return output.json(); }
+    );
 }
 
-string Entry::deriveAddress(TWCoinType coin, const PublicKey& publicKey, TW::byte, const char* hrp) const {
-    return Address(hrp, publicKey).string();
-}
-
-void Entry::sign(TWCoinType coin, const TW::Data& dataIn, TW::Data& dataOut) const {
-    signTemplate<Signer, Proto::SigningInput>(dataIn, dataOut);
-}
-
-string Entry::signJSON(TWCoinType coin, const std::string& json, const Data& key) const { 
-    return Signer::signJSON(json, key);
-}
+} // namespace TW::Cosmos

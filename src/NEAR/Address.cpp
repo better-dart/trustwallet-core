@@ -1,23 +1,22 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
+#include "Address.h"
 #include "Base58.h"
 #include "HexCoding.h"
-#include "Address.h"
 
 #include <stdexcept>
 
 using namespace TW;
-using namespace TW::NEAR;
+
+namespace TW::NEAR {
 
 bool Address::isValid(const std::string& string) {
     const auto data = Address::decodeLegacyAddress(string);
     if (data.has_value()) {
         return true;
-    } 
+    }
     const auto parsed = parse_hex(string);
     return parsed.size() == PublicKey::ed25519Size;
 }
@@ -26,11 +25,14 @@ bool Address::isValid(const std::string& string) {
 std::optional<Data> Address::decodeLegacyAddress(const std::string& string) {
     const auto prefix = std::string("NEAR");
     if (string.substr(0, prefix.size()) != prefix) {
-        return {};
+        return std::nullopt;
     }
 
-    const Data& decoded = Base58::bitcoin.decode(string.substr(prefix.size()));
-    return Data(decoded.begin(), decoded.end() - 4);
+    const Data& decoded = Base58::decode(string.substr(prefix.size()));
+    if (decoded.size() != size + legacyChecksumSize) {
+        return std::nullopt;
+    }
+    return Data(decoded.begin(), decoded.end() - legacyChecksumSize);
 }
 
 /// Initializes a NEAR address from a string representation.
@@ -39,10 +41,10 @@ Address::Address(const std::string& string) {
     if (data.has_value()) {
         std::copy(std::begin(*data), std::end(*data), std::begin(bytes));
     } else {
-        if (!Address::isValid(string)) {
-             throw std::invalid_argument("Invalid address string!");
-        }
         const auto parsed = parse_hex(string);
+        if (parsed.size() != PublicKey::ed25519Size) {
+            throw std::invalid_argument("Invalid address string!");
+        }
         std::copy(std::begin(parsed), std::end(parsed), std::begin(bytes));
     }
 }
@@ -58,3 +60,5 @@ Address::Address(const PublicKey& publicKey) {
 std::string Address::string() const {
     return hex(bytes);
 }
+
+} // namespace TW::NEAR

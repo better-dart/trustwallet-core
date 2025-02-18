@@ -1,22 +1,19 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #include "PackedTransaction.h"
 
 #include "../HexCoding.h"
 
-using namespace TW;
-using namespace TW::EOS;
-using json = nlohmann::json;
+namespace TW::EOS {
 
-PackedTransaction::PackedTransaction(const Transaction& transaction, CompressionType type) noexcept : compression(type) {
+PackedTransaction::PackedTransaction(const Transaction& transaction, CompressionType type) noexcept
+    : compression(type) {
     transaction.serialize(packedTrx);
     const Data& cfd = transaction.contextFreeData;
 
-    if (cfd.size()) {
+    if (!cfd.empty()) {
         packedCFD.push_back(1);
         encodeVarInt64(cfd.size(), packedCFD);
         append(packedCFD, cfd);
@@ -50,3 +47,5 @@ json PackedTransaction::serialize() const noexcept {
 
     return obj;
 }
+
+} // namespace TW::EOS

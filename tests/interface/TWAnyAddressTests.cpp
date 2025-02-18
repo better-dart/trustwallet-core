@@ -1,20 +1,19 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
-#include "TWTestUtilities.h"
+#include "TestUtilities.h"
 
 #include "HexCoding.h"
 #include <TrustWalletCore/TWAnyAddress.h>
 #include <TrustWalletCore/TWCoinType.h>
+#include <TrustWalletCore/TWPublicKey.h>
 
 #include <gtest/gtest.h>
 
 using namespace TW;
 
-TEST(AnyAddress, InvalidString) {
+TEST(TWAnyAddress, InvalidString) {
     auto string = STRING("0x4E5B2e1dc63F6b91cb6Cd759936495434C7e972F");
     auto btcAddress = TWAnyAddressCreateWithString(string.get(), TWCoinTypeBitcoin);
     auto ethAaddress = WRAP(TWAnyAddress, TWAnyAddressCreateWithString(string.get(), TWCoinTypeEthereum));
@@ -24,11 +23,25 @@ TEST(AnyAddress, InvalidString) {
     ASSERT_EQ(TWAnyAddressCoin(ethAaddress.get()), TWCoinTypeEthereum);
 }
 
-TEST(AnyAddress, Data) {
+TEST(TWAnyAddress, Data) {
     // ethereum
     {
         auto string = STRING("0x4E5B2e1dc63F6b91cb6Cd759936495434C7e972F");
         auto addr = WRAP(TWAnyAddress, TWAnyAddressCreateWithString(string.get(), TWCoinTypeEthereum));
+        auto keyHash = WRAPD(TWAnyAddressData(addr.get()));
+        assertHexEqual(keyHash, "4e5b2e1dc63f6b91cb6cd759936495434c7e972f");
+    }
+    // smartBCH
+    {
+        auto string = STRING("0x4E5B2e1dc63F6b91cb6Cd759936495434C7e972F");
+        auto addr = WRAP(TWAnyAddress, TWAnyAddressCreateWithString(string.get(), TWCoinTypeSmartBitcoinCash));
+        auto keyHash = WRAPD(TWAnyAddressData(addr.get()));
+        assertHexEqual(keyHash, "4e5b2e1dc63f6b91cb6cd759936495434c7e972f");
+    }
+    // KuCoin Community Chain
+    {
+        auto string = STRING("0x4E5B2e1dc63F6b91cb6Cd759936495434C7e972F");
+        auto addr = WRAP(TWAnyAddress, TWAnyAddressCreateWithString(string.get(), TWCoinTypeKuCoinCommunityChain));
         auto keyHash = WRAPD(TWAnyAddressData(addr.get()));
         assertHexEqual(keyHash, "4e5b2e1dc63f6b91cb6cd759936495434c7e972f");
     }
@@ -39,14 +52,21 @@ TEST(AnyAddress, Data) {
         auto keyHash = WRAPD(TWAnyAddressData(addr.get()));
         assertHexEqual(keyHash, "bffe47abfaede50419c577f1074fee6dd1535cd1");
     }
-    // segwit witness program
+    // bitcoin segwit witness program
     {
         auto string = STRING("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4");
         auto addr = WRAP(TWAnyAddress, TWAnyAddressCreateWithString(string.get(), TWCoinTypeBitcoin));
         auto witness = WRAPD(TWAnyAddressData(addr.get()));
         assertHexEqual(witness, "751e76e8199196d454941c45d1b3a323f1433bd6");
     }
-    // cashaddr
+    // bitcoin taproot (segwit v1, bech32m)
+    {
+        auto string = STRING("bc1pw508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7kt5nd6y");
+        auto addr = WRAP(TWAnyAddress, TWAnyAddressCreateWithString(string.get(), TWCoinTypeBitcoin));
+        auto witness = WRAPD(TWAnyAddressData(addr.get()));
+        assertHexEqual(witness, "751e76e8199196d454941c45d1b3a323f1433bd6751e76e8199196d454941c45d1b3a323f1433bd6");
+    }
+    // bitcoincashaddr
     {
         auto string = STRING("bitcoincash:qzxf0wl63ahx6jsxu8uuldcw7n5aatwppvnteraqaw");
         auto addr = WRAP(TWAnyAddress, TWAnyAddressCreateWithString(string.get(), TWCoinTypeBitcoinCash));
@@ -107,10 +127,10 @@ TEST(AnyAddress, Data) {
     }
     // cardano
     {
-        auto string = STRING("addr1s3xuxwfetyfe7q9u3rfn6je9stlvcgmj8rezd87qjjegdtxm3y3f2mgtn87mrny9r77gm09h6ecslh3gmarrvrp9n4yzmdnecfxyu59jz29g8j");
+        auto string = STRING("addr1q8043m5heeaydnvtmmkyuhe6qv5havvhsf0d26q3jygsspxlyfpyk6yqkw0yhtyvtr0flekj84u64az82cufmqn65zdsylzk23");
         auto addr = WRAP(TWAnyAddress, TWAnyAddressCreateWithString(string.get(), TWCoinTypeCardano));
         auto pubkey = WRAPD(TWAnyAddressData(addr.get()));
-        assertHexEqual(pubkey, "0104204dc3393959139f00bc88d33d4b2582fecc237238f2269fc094b286acdb892295206d0b99fdb1cc851fbc8dbcb7d6710fde28df46360c259d482db679c24c4e50b2");
+        assertHexEqual(pubkey, "01df58ee97ce7a46cd8bdeec4e5f3a03297eb197825ed5681191110804df22424b6880b39e4bac8c58de9fe6d23d79aaf44756389d827aa09b");
     }
     // neo
     {
@@ -119,10 +139,10 @@ TEST(AnyAddress, Data) {
         auto keyHash = WRAPD(TWAnyAddressData(addr.get()));
         assertHexEqual(keyHash, "172bdf43265c0adfe105a1a8c45b3f406a38362f24");
     }
-    // elrond
+    // multiversx
     {
         auto string = STRING("erd1l453hd0gt5gzdp7czpuall8ggt2dcv5zwmfdf3sd3lguxseux2fsmsgldz");
-        auto addr = WRAP(TWAnyAddress, TWAnyAddressCreateWithString(string.get(), TWCoinTypeElrond));
+        auto addr = WRAP(TWAnyAddress, TWAnyAddressCreateWithString(string.get(), TWCoinTypeMultiversX));
         auto pubkey = WRAPD(TWAnyAddressData(addr.get()));
         assertHexEqual(pubkey, "fd691bb5e85d102687d81079dffce842d4dc328276d2d4c60d8fd1c3433c3293");
     }
@@ -132,5 +152,70 @@ TEST(AnyAddress, Data) {
         auto addr = WRAP(TWAnyAddress, TWAnyAddressCreateWithString(string.get(), TWCoinTypeNEAR));
         auto pubkey = WRAPD(TWAnyAddressData(addr.get()));
         assertHexEqual(pubkey, "3b83b07cab54824a59c3d3f2e203a7cd913b7fcdc4439595983e2402c2cf791d");
+    }
+    // ecashaddr
+    {
+        auto string = STRING("ecash:qzxf0wl63ahx6jsxu8uuldcw7n5aatwppv2xdgx6me");
+        auto addr = WRAP(TWAnyAddress, TWAnyAddressCreateWithString(string.get(), TWCoinTypeECash));
+        auto keyHash = WRAPD(TWAnyAddressData(addr.get()));
+        assertHexEqual(keyHash, "8c97bbfa8f6e6d4a06e1f9cfb70ef4e9deadc10b");
+    }
+    // solana
+    {
+        auto string = STRING("2gVkYWexTHR5Hb2aLeQN3tnngvWzisFKXDUPrgMHpdST");
+        auto addr = WRAP(TWAnyAddress, TWAnyAddressCreateWithString(string.get(), TWCoinTypeSolana));
+        auto keyHash = WRAPD(TWAnyAddressData(addr.get()));
+        assertHexEqual(keyHash, "18f9d8d877393bbbe8d697a8a2e52879cc7e84f467656d1cce6bab5a8d2637ec");
+    }
+}
+
+TEST(TWAnyAddress, createFromPubKey) {
+    constexpr auto pubkey = "02753f5c275e1847ba4d2fd3df36ad00af2e165650b35fe3991e9c9c46f68b12bc";
+    const auto pubkey_twstring = STRING(pubkey);
+    const auto pubkey_data = WRAPD(TWDataCreateWithHexString(pubkey_twstring.get()));
+    const auto pubkey_obj = WRAP(TWPublicKey, TWPublicKeyCreateWithData(pubkey_data.get(), TWPublicKeyTypeSECP256k1));
+
+    const auto addr = WRAP(TWAnyAddress, TWAnyAddressCreateWithPublicKey(pubkey_obj.get(), TWCoinTypeBitcoin));
+
+    assertStringsEqual(WRAPS(TWAnyAddressDescription(addr.get())), "bc1qcj2vfjec3c3luf9fx9vddnglhh9gawmncmgxhz");
+}
+
+TEST(TWAnyAddress, createFromPubKeyDerivation) {
+    constexpr auto pubkey = "02753f5c275e1847ba4d2fd3df36ad00af2e165650b35fe3991e9c9c46f68b12bc";
+    const auto pubkey_twstring = STRING(pubkey);
+    const auto pubkey_data = WRAPD(TWDataCreateWithHexString(pubkey_twstring.get()));
+    const auto pubkey_obj = WRAP(TWPublicKey, TWPublicKeyCreateWithData(pubkey_data.get(), TWPublicKeyTypeSECP256k1));
+
+    {
+        const auto addr = WRAP(TWAnyAddress, TWAnyAddressCreateWithPublicKeyDerivation(pubkey_obj.get(), TWCoinTypeBitcoin, TWDerivationDefault));
+        assertStringsEqual(WRAPS(TWAnyAddressDescription(addr.get())), "bc1qcj2vfjec3c3luf9fx9vddnglhh9gawmncmgxhz");
+    }
+    {
+        const auto addr = WRAP(TWAnyAddress, TWAnyAddressCreateWithPublicKeyDerivation(pubkey_obj.get(), TWCoinTypeBitcoin, TWDerivationBitcoinLegacy));
+        assertStringsEqual(WRAPS(TWAnyAddressDescription(addr.get())), "1JvRfEQFv5q5qy9uTSAezH7kVQf4hqnHXx");
+    }
+    {
+        const auto addr = WRAP(TWAnyAddress, TWAnyAddressCreateWithPublicKeyDerivation(pubkey_obj.get(), TWCoinTypeBitcoin, TWDerivationBitcoinTestnet));
+        assertStringsEqual(WRAPS(TWAnyAddressDescription(addr.get())), "tb1qcj2vfjec3c3luf9fx9vddnglhh9gawmnjan4v3");
+    }
+}
+
+TEST(TWAnyAddress, createFromPubKeyFilecoinAddressType) {
+    constexpr auto pubkey = "0419bf99082cf2fcdaa812d6eba1eba9036ff3a3d84c1817c84954d4e8ae283fec5313e427a0f5f68dec3169b2eda876b1d9f97b1ede7f958baee6a2ce78f6e94a";
+    const auto pubkey_twstring = STRING(pubkey);
+    const auto pubkey_data = WRAPD(TWDataCreateWithHexString(pubkey_twstring.get()));
+    const auto pubkey_obj = WRAP(TWPublicKey, TWPublicKeyCreateWithData(pubkey_data.get(), TWPublicKeyTypeSECP256k1Extended));
+
+    {
+        const auto addr = WRAP(TWAnyAddress, TWAnyAddressCreateWithPublicKeyFilecoinAddressType(pubkey_obj.get(), TWFilecoinAddressTypeDefault));
+        const auto actual = WRAPS(TWAnyAddressDescription(addr.get()));
+        assertStringsEqual(actual, "f1syn25x7infncgfvodhriq2dudvmudabtavm3wyy");
+        ASSERT_TRUE(TWAnyAddressIsValid(actual.get(), TWCoinTypeFilecoin));
+    }
+    {
+        const auto addr = WRAP(TWAnyAddress, TWAnyAddressCreateWithPublicKeyFilecoinAddressType(pubkey_obj.get(), TWFilecoinAddressTypeDelegated));
+        const auto actual = WRAPS(TWAnyAddressDescription(addr.get()));
+        assertStringsEqual(actual, "f410fvak24cyg3saddajborn6idt7rrtfj2ptauk5pbq");
+        ASSERT_TRUE(TWAnyAddressIsValid(actual.get(), TWCoinTypeFilecoin));
     }
 }

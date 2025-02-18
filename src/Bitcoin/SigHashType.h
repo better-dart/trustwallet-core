@@ -1,8 +1,6 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #pragma once
 
@@ -13,23 +11,24 @@ namespace TW::Bitcoin {
 
 // Defines the number of bits of the hash type which is used to identify which
 // outputs are signed.
-static const uint8_t SigHashMask = 0x1f;
+static const uint32_t SigHashMask = 0x1f;
 
 // Return the default HashType for the given coin, such as TWBitcoinSigHashTypeAll.
-inline uint32_t hashTypeForCoin(enum TWCoinType coinType) {
-    // set fork hash type for BCH
+inline enum TWBitcoinSigHashType hashTypeForCoin(enum TWCoinType coinType) {
+    // set fork hash type for BCH and XEC
     switch (coinType) {
         case TWCoinTypeBitcoinCash:
-            return (uint32_t)TWBitcoinSigHashTypeAll | (uint32_t)TWBitcoinSigHashTypeFork;
+        case TWCoinTypeECash:
+            return (TWBitcoinSigHashType)((uint32_t)TWBitcoinSigHashTypeAll | (uint32_t)TWBitcoinSigHashTypeFork);
         case TWCoinTypeBitcoinGold:
-            return (uint32_t)TWBitcoinSigHashTypeAll | (uint32_t)TWBitcoinSigHashTypeForkBTG;
+            return (TWBitcoinSigHashType)((uint32_t)TWBitcoinSigHashTypeAll | (uint32_t)TWBitcoinSigHashTypeForkBTG);
         default:
             return TWBitcoinSigHashTypeAll;
     }
 }
 
-inline bool hashTypeIsSingle(enum TWBitcoinSigHashType type) { return (type & SigHashMask) == TWBitcoinSigHashTypeSingle; }
+inline bool hashTypeIsSingle(enum TWBitcoinSigHashType type) { return ((uint32_t)type & SigHashMask) == (uint32_t)TWBitcoinSigHashTypeSingle; }
 
-inline bool hashTypeIsNone(enum TWBitcoinSigHashType type) { return (type & SigHashMask) == TWBitcoinSigHashTypeNone; }
+inline bool hashTypeIsNone(enum TWBitcoinSigHashType type) { return ((uint32_t)type & SigHashMask) == (uint32_t)TWBitcoinSigHashTypeNone; }
 
 } // namespace TW::Bitcoin

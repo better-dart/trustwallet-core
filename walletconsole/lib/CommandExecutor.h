@@ -1,8 +1,6 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #pragma once
 
@@ -46,7 +44,7 @@ protected:
     static string parseLine(const string& line, vector<string>& params);
     bool prepareInputs(const vector<string>& p_in, vector<string>& p_out);
     bool setCoin(const string& coin, bool force);
-    bool checkMinParams(const vector<string>& params, int n) const;
+    bool checkMinParams(const vector<string>& params, std::size_t n) const;
     void help() const;
 };
 

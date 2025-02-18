@@ -1,8 +1,6 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #pragma once
 
@@ -45,8 +43,3 @@ class TAddress : public TW::Base58Address<22> {
 };
 
 } // namespace TW::Zcash
-
-/// Wrapper for C interface.
-struct TWZcashTAddress {
-    TW::Zcash::TAddress impl;
-};

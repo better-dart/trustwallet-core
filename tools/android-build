@@ -4,9 +4,21 @@
 
 set -e
 
+source $(dirname $0)/library
+version=$(wc_read_version $1)
+
+if [[ `uname` == "Darwin" ]]; then
+    export BOOST_ROOT=$(brew --prefix boost)
+fi
+
 pushd android
 ./gradlew assembleRelease
-cp trustwalletcore/build/outputs/aar/trustwalletcore-release.aar ../build/trustwalletcore.aar
+cp wallet-core/build/outputs/aar/wallet-core-release.aar ../build/wallet-core.aar
 popd
 
-echo "Now upload build/trustwalletcore.aar to https://github.com/TrustWallet/trust-wallet-core/releases/tag/$(git describe --long --tags | cut -f 1 -d "-")"
+echo "Now upload build/wallet-core.aar to https://github.com/TrustWallet/trust-wallet-core/releases/tag/$version"
+
+echo "Building docs..."
+tools/kotlin-doc
+
+echo "Now upload Kotlin docs from build/kdoc.zip to whatever place it needs to be"

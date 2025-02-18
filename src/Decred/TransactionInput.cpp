@@ -1,14 +1,12 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #include "TransactionInput.h"
 
 #include "../BinaryCoding.h"
 
-using namespace TW::Decred;
+namespace TW::Decred {
 
 void TransactionInput::encode(Data& data) const {
     previousOutput.encode(data);
@@ -21,3 +19,5 @@ void TransactionInput::encodeWitness(Data& data) const {
     encode32LE(blockIndex, data);
     script.encode(data);
 }
+
+} // namespace TW::Decred

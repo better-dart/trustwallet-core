@@ -1,8 +1,8 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
+
+#pragma once
 
 #include "Transaction.h"
 #include "../proto/Aeternity.pb.h"
@@ -11,19 +11,19 @@
 namespace TW::Aeternity {
 
 class Signer {
-  public:
+public:
     /// Signs a Proto::SigningInput transaction
     static Proto::SigningOutput sign(const Proto::SigningInput& input) noexcept;
 
     /// Signs the given transaction.
-    static Proto::SigningOutput sign(const PrivateKey &privateKey, Transaction &transaction);
+    static Proto::SigningOutput sign(const PrivateKey& privateKey, Transaction& transaction);
 
-  private:
+private:
     static const uint8_t checkSumSize = 4;
 
-    static Data buildRlpTxRaw(Data& txRaw, Data& sigRaw);
+    static Data buildRlpTxRaw(const Data& txRaw, const Data& sigRaw);
 
-    static Data buildMessageToSign(Data& txRaw);
+    static Data buildMessageToSign(const Data& txRaw);
 
     static Proto::SigningOutput createProtoOutput(std::string& signature, const std::string& signedTx);
 

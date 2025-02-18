@@ -1,8 +1,6 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #include "Signer.h"
 #include "Serialization.h"
@@ -10,8 +8,7 @@
 #include "../Hash.h"
 #include "../PrivateKey.h"
 
-using namespace TW;
-using namespace TW::NEAR;
+namespace TW::NEAR {
 
 Proto::SigningOutput Signer::sign(const Proto::SigningInput& input) noexcept {
     auto transaction = transactionData(input);
@@ -21,5 +18,30 @@ Proto::SigningOutput Signer::sign(const Proto::SigningInput& input) noexcept {
     auto output = Proto::SigningOutput();
     auto signedTransaction = signedTransactionData(transaction, signature);
     output.set_signed_transaction(signedTransaction.data(), signedTransaction.size());
+    output.set_hash(hash.data(), hash.size());
     return output;
 }
+
+Data Signer::signaturePreimage() const {
+    return TW::NEAR::transactionDataWithPublicKey(input);
+};
+
+Proto::SigningOutput Signer::compile(const Data& signature, const PublicKey& publicKey) const {
+    // validate public key
+    if (publicKey.type != TWPublicKeyTypeED25519) {
+        throw std::invalid_argument("Invalid public key");
+    }
+    auto preImage = signaturePreimage();
+    auto hash = Hash::sha256(preImage);
+    {
+        // validate correctness of signature
+        if (!publicKey.verify(signature, hash)) {
+            throw std::invalid_argument("Invalid signature/hash/publickey combination");
+        }
+    }
+    auto signedPreImage = TW::NEAR::signedTransactionData(preImage, signature);
+    auto output = Proto::SigningOutput();
+    output.set_signed_transaction(signedPreImage.data(), signedPreImage.size());
+    return output;
+}
+} // namespace TW::NEAR

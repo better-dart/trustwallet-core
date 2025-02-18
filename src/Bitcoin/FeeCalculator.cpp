@@ -1,54 +1,63 @@
-// Copyright © 2017-2021 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #include "FeeCalculator.h"
 
+#include <algorithm>
 #include <cmath>
 
 using namespace TW;
 
 namespace TW::Bitcoin {
 
-int64_t DefaultFeeCalculator::calculate(int64_t inputs, int64_t outputs, int64_t byteFee) const {
-    const auto txsize = ((148 * inputs) + (34 * outputs) + 10);
-    return int64_t(txsize) * byteFee;
-}
+constexpr double gDecredBytesPerInput{166};
+constexpr double gDecredBytesPerOutput{38};
+constexpr double gDecredBytesBase{12};
 
-int64_t DefaultFeeCalculator::calculateSingleInput(int64_t byteFee) const {
-    return int64_t(148) * byteFee;
-}
-
-int64_t SegwitFeeCalculator::calculate(int64_t inputs, int64_t outputs, int64_t byteFee) const {
-    const auto txsize = int64_t(std::ceil(101.25 * inputs + 31.0 * outputs + 10.0));
+int64_t LinearFeeCalculator::calculate(int64_t inputs, int64_t outputs,
+                                       int64_t byteFee) const noexcept {
+    const auto txsize =
+        static_cast<int64_t>(std::ceil(bytesPerInput * static_cast<double>(inputs) +
+                                       bytesPerOutput * static_cast<double>(outputs) + bytesBase));
     return txsize * byteFee;
 }
 
-int64_t SegwitFeeCalculator::calculateSingleInput(int64_t byteFee) const {
-    return int64_t(102) * byteFee; // std::ceil(101.25) = 102
+int64_t LinearFeeCalculator::calculateSingleInput(int64_t byteFee) const noexcept {
+    return static_cast<int64_t>(std::ceil(bytesPerInput)) * byteFee; // std::ceil(101.25) = 102
 }
 
-class DecredFeeCalculator : public FeeCalculator {
-public:
-    int64_t calculate(int64_t inputs, int64_t outputs = 2, int64_t byteFee = 1) const override {
-        const auto txsize = ((166 * inputs) + (38 * outputs) + 12);
-        return int64_t(txsize) * byteFee;
-    }
+class DecredFeeCalculator : public LinearFeeCalculator {
+private:
+    bool disableDustFilter = false;
 
-    int64_t calculateSingleInput(int64_t byteFee) const override {
-        return int64_t(166) * byteFee;
+public:
+    constexpr DecredFeeCalculator(bool disableFilter = false) noexcept
+        : LinearFeeCalculator(gDecredBytesPerInput, gDecredBytesPerOutput, gDecredBytesBase)
+        , disableDustFilter(disableFilter) {}
+
+    int64_t calculateSingleInput(int64_t byteFee) const noexcept override {
+        if (disableDustFilter) { 
+            return 0; 
+        }
+        return LinearFeeCalculator::calculateSingleInput(byteFee);
     }
 };
 
-DefaultFeeCalculator defaultFeeCalculator;
-DecredFeeCalculator decredFeeCalculator;
-SegwitFeeCalculator segwitFeeCalculator;
+static constexpr DefaultFeeCalculator defaultFeeCalculator{};
+static constexpr DefaultFeeCalculator defaultFeeCalculatorNoDustFilter(true);
+static constexpr DecredFeeCalculator decredFeeCalculator{};
+static constexpr DecredFeeCalculator decredFeeCalculatorNoDustFilter(true);
+static constexpr SegwitFeeCalculator segwitFeeCalculator{};
+static constexpr SegwitFeeCalculator segwitFeeCalculatorNoDustFilter(true);
+static constexpr Zip0317FeeCalculator zip0317FeeCalculator{};
 
-FeeCalculator& getFeeCalculator(TWCoinType coinType) {
+const FeeCalculator& getFeeCalculator(TWCoinType coinType, bool disableFilter, bool zip0317) noexcept {
     switch (coinType) {
     case TWCoinTypeDecred:
+        if (disableFilter) {
+            return decredFeeCalculatorNoDustFilter;
+        }
         return decredFeeCalculator;
 
     case TWCoinTypeBitcoin:
@@ -57,11 +66,34 @@ FeeCalculator& getFeeCalculator(TWCoinType coinType) {
     case TWCoinTypeLitecoin:
     case TWCoinTypeViacoin:
     case TWCoinTypeGroestlcoin:
+    case TWCoinTypeSyscoin:
+    case TWCoinTypeStratis:
+        if (disableFilter) {
+            return segwitFeeCalculatorNoDustFilter;
+        }
         return segwitFeeCalculator;
 
+    case TWCoinTypeZcash:
+    case TWCoinTypeKomodo:
+    case TWCoinTypeZelcash:
+        if (zip0317) {
+            return zip0317FeeCalculator;
+        }
+        return defaultFeeCalculator;
+
     default:
+        if (disableFilter) {
+            return defaultFeeCalculatorNoDustFilter;
+        }
         return defaultFeeCalculator;
     }
+}
+
+// https://github.com/Zondax/ledger-zcash-tools/blob/5ecf1c04c69d2454b73aa7acea4eadda563dfeff/ledger-zcash-app-builder/src/txbuilder.rs#L342-L363
+int64_t Zip0317FeeCalculator::calculate(int64_t inputs, int64_t outputs, [[maybe_unused]] int64_t byteFee) const noexcept {
+    const auto logicalActions = std::max(inputs, outputs);
+    const auto actions = std::max(gGraceActions, logicalActions);
+    return gMarginalFee * actions;
 }
 
 } // namespace TW::Bitcoin

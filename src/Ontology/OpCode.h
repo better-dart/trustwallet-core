@@ -1,8 +1,6 @@
-// Copyright © 2017-2020 Trust Wallet.
+// SPDX-License-Identifier: Apache-2.0
 //
-// This file is part of Trust. The full Trust copyright notice, including
-// terms governing use, modification, and redistribution, is contained in the
-// file LICENSE at the root of the source code distribution tree.
+// Copyright © 2017 Trust Wallet.
 
 #pragma once
 
@@ -25,5 +23,6 @@ static const uint8_t TO_ALT_STACK{0x6B};
 static const uint8_t FROM_ALT_STACK{0x6C};
 static const uint8_t SWAP{0x7C};
 static const uint8_t HAS_KEY{0xC8};
+static const uint8_t APP_CALL{0x67};
 
 } // namespace TW::Ontology
